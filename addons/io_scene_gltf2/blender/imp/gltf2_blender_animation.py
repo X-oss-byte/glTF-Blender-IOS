@@ -22,7 +22,7 @@ from .gltf2_blender_vnode import VNode
 class BlenderAnimation():
     """Dispatch Animation to node or morph weights animation."""
     def __new__(cls, *args, **kwargs):
-        raise RuntimeError("%s should not be instantiated" % cls)
+        raise RuntimeError(f"{cls} should not be instantiated")
 
     @staticmethod
     def anim(gltf, anim_idx):

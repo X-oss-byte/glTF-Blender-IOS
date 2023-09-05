@@ -107,7 +107,7 @@ class VExportTree:
 
         # Gather parent/children information once, as calling bobj.children is
         #   very expensive operation : takes O(len(bpy.data.objects)) time.
-        blender_children = dict()
+        blender_children = {}
         for bobj in bpy.data.objects:
             bparent = bobj.parent
             blender_children.setdefault(bobj, [])
@@ -149,7 +149,10 @@ class VExportTree:
         if node.blender_type == VExportNode.OBJECT:
             modifiers = {m.type: m for m in blender_object.modifiers}
             if "ARMATURE" in modifiers and modifiers["ARMATURE"].object is not None:
-                if parent_uuid is None or not self.nodes[parent_uuid].blender_type == VExportNode.ARMATURE:
+                if (
+                    parent_uuid is None
+                    or self.nodes[parent_uuid].blender_type != VExportNode.ARMATURE
+                ):
                     # correct workflow is to parent skinned mesh to armature, but ...
                     # all users don't use correct workflow
                     print("WARNING: Armature must be the parent of skinned mesh")
@@ -279,22 +282,21 @@ class VExportTree:
         return [n.uuid for n in self.nodes.values() if n.blender_type != VExportNode.BONE]
 
     def get_all_bones(self, uuid): #For armatue Only
-        if self.nodes[uuid].blender_type == VExportNode.ARMATURE:
-            def recursive_get_all_bones(uuid):
-                total = []
-                if self.nodes[uuid].blender_type == VExportNode.BONE:
-                    total.append(uuid)
-                    for child_uuid in self.nodes[uuid].children:
-                        total.extend(recursive_get_all_bones(child_uuid))
-
-                return total
-
-            tot = []
-            for c_uuid in self.nodes[uuid].children:
-                tot.extend(recursive_get_all_bones(c_uuid))
-            return tot
-        else:
+        if self.nodes[uuid].blender_type != VExportNode.ARMATURE:
             return []
+        def recursive_get_all_bones(uuid):
+            total = []
+            if self.nodes[uuid].blender_type == VExportNode.BONE:
+                total.append(uuid)
+                for child_uuid in self.nodes[uuid].children:
+                    total.extend(recursive_get_all_bones(child_uuid))
+
+            return total
+
+        tot = []
+        for c_uuid in self.nodes[uuid].children:
+            tot.extend(recursive_get_all_bones(c_uuid))
+        return tot
 
     def get_all_node_of_type(self, node_type):
         return [n.uuid for n in self.nodes.values() if n.blender_type == node_type]
@@ -391,10 +393,13 @@ class VExportTree:
         if self.nodes[uuid].blender_type == VExportNode.BONE:
             if self.export_settings['gltf_def_bones'] is True and self.nodes[uuid].use_deform is False:
                 # Check if bone has some objected parented to bone. We need to keep it in that case, even if this is not a def bone
-                if len([c for c in self.nodes[uuid].children if self.nodes[c].blender_type != VExportNode.BONE]) != 0:
-                    return True
-                return False
-
+                return bool(
+                    [
+                        c
+                        for c in self.nodes[uuid].children
+                        if self.nodes[c].blender_type != VExportNode.BONE
+                    ]
+                )
         return True
 
     def node_filter_inheritable_is_kept(self, uuid):
@@ -412,7 +417,10 @@ class VExportTree:
                 return False
 
             # The screen in outliner (collections)
-            if all([c.hide_viewport for c in self.nodes[uuid].blender_object.users_collection]):
+            if all(
+                c.hide_viewport
+                for c in self.nodes[uuid].blender_object.users_collection
+            ):
                 return False
 
         # The camera in outliner (object)
@@ -421,7 +429,10 @@ class VExportTree:
                 return False
 
             # The camera in outliner (collections)
-            if all([c.hide_render for c in self.nodes[uuid].blender_object.users_collection]):
+            if all(
+                c.hide_render
+                for c in self.nodes[uuid].blender_object.users_collection
+            ):
                 return False
 
         if self.export_settings['gltf_active_collection'] and not self.export_settings['gltf_active_collection_with_nested']:
@@ -441,18 +452,22 @@ class VExportTree:
 
     def search_missing_armature(self):
         for n in [n for n in self.nodes.values() if hasattr(n, "armature_needed") is True]:
-            candidates = [i for i in self.nodes.values() if i.blender_type == VExportNode.ARMATURE and i.blender_object.name == n.armature_needed]
-            if len(candidates) > 0:
+            if candidates := [
+                i
+                for i in self.nodes.values()
+                if i.blender_type == VExportNode.ARMATURE
+                and i.blender_object.name == n.armature_needed
+            ]:
                 n.armature = candidates[0].uuid
             del n.armature_needed
 
     def add_neutral_bones(self):
         added_armatures = []
         for n in [n for n in self.nodes.values() if \
-                n.armature is not None and \
-                n.armature in self.nodes and \
-                n.blender_type == VExportNode.OBJECT and \
-                hasattr(self.nodes[n.armature], "need_neutral_bone")]: #all skin meshes objects where neutral bone is needed
+                    n.armature is not None and \
+                    n.armature in self.nodes and \
+                    n.blender_type == VExportNode.OBJECT and \
+                    hasattr(self.nodes[n.armature], "need_neutral_bone")]: #all skin meshes objects where neutral bone is needed
 
             if n.armature not in added_armatures:
 
@@ -495,9 +510,7 @@ class VExportTree:
 
                 matrix = []
                 for column in range(0, 4):
-                    for row in range(0, 4):
-                            matrix.append(inverse_bind_matrix[row][column])
-
+                    matrix.extend(inverse_bind_matrix[row][column] for row in range(0, 4))
                 array = np.append(array, np.array([matrix]), axis=0)
                 binary_data = gltf2_io_binary_data.BinaryData.from_list(array.flatten(), gltf2_io_constants.ComponentType.Float)
                 n.node.skin.inverse_bind_matrices = gltf2_blender_gather_accessors.gather_accessor(
@@ -513,7 +526,13 @@ class VExportTree:
         from .gltf2_blender_gather_skins import gather_skin
         skins = []
         for n in [n for n in self.nodes.values() if n.blender_type == VExportNode.ARMATURE]:
-            if len([m for m in self.nodes.values() if m.keep_tag is True and m.blender_type == VExportNode.OBJECT and m.armature == n.uuid]) == 0:
+            if not [
+                m
+                for m in self.nodes.values()
+                if m.keep_tag is True
+                and m.blender_type == VExportNode.OBJECT
+                and m.armature == n.uuid
+            ]:
                 skin = gather_skin(n.uuid, self.export_settings)
                 skins.append(skin)
         return skins

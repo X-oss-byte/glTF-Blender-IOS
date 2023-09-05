@@ -22,7 +22,7 @@ from ..com.gltf2_blender_extras import set_extras
 class BlenderLight():
     """Blender Light."""
     def __new__(cls, *args, **kwargs):
-        raise RuntimeError("%s should not be instantiated" % cls)
+        raise RuntimeError(f"{cls} should not be instantiated")
 
     @staticmethod
     def create(gltf, vnode, light_id):
@@ -59,9 +59,10 @@ class BlenderLight():
         if 'intensity' in pylight.keys():
             if gltf.import_settings['export_import_convert_lighting_mode'] == 'SPEC':
                 sun.energy = pylight['intensity'] / PBR_WATTS_TO_LUMENS
-            elif gltf.import_settings['export_import_convert_lighting_mode'] == 'COMPAT':
-                sun.energy = pylight['intensity']
-            elif gltf.import_settings['export_import_convert_lighting_mode'] == 'RAW':
+            elif gltf.import_settings['export_import_convert_lighting_mode'] in [
+                'COMPAT',
+                'RAW',
+            ]:
                 sun.energy = pylight['intensity']
             else:
                 raise ValueError(gltf.import_settings['export_import_convert_lighting_mode'])

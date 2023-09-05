@@ -29,13 +29,11 @@ def export_volume(blender_material, export_settings):
     elif gltf2_blender_get.has_image_node_from_socket(transmission_socket):
         transmission_enabled = True
 
-    if transmission_enabled is False:
+    if not transmission_enabled:
         return None, None
 
     volume_extension = {}
     has_thickness_texture = False
-    thickness_slots = ()
-
     thicknesss_socket = gltf2_blender_get.get_socket_old(blender_material, 'Thickness')
     if thicknesss_socket is None:
         # If no thickness (here because there is no glTF Material Output node), no volume extension export
@@ -66,13 +64,10 @@ def export_volume(blender_material, export_settings):
         volume_extension['thicknessFactor'] = fac if fac != None else 1.0
         has_thickness_texture = True
 
-       # Pack thickness channel (R).
-    if has_thickness_texture:
-        thickness_slots = (thicknesss_socket,)
-
+    thickness_slots = (thicknesss_socket, ) if has_thickness_texture else ()
     use_actives_uvmaps = []
 
-    if len(thickness_slots) > 0:
+    if thickness_slots:
         combined_texture, use_active_uvmap, _ = gltf2_blender_gather_texture_info.gather_texture_info(
             thicknesss_socket,
             thickness_slots,

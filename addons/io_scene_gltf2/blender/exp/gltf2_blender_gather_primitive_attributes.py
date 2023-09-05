@@ -38,7 +38,7 @@ def gather_primitive_attributes(blender_primitive, export_settings):
             continue
         if attribute.startswith("MORPH_"):
             continue # Target for morphs will be managed later
-        attributes.update(__gather_attribute(blender_primitive, attribute, export_settings))
+        attributes |= __gather_attribute(blender_primitive, attribute, export_settings)
         if (attribute.startswith("JOINTS_") or attribute.startswith("WEIGHTS_")):
             skin_done = True
 
@@ -76,7 +76,9 @@ def __gather_skins(blender_primitive, export_settings):
 
     # Retrieve max set index
     max_bone_set_index = 0
-    while blender_primitive["attributes"].get('JOINTS_' + str(max_bone_set_index)) and blender_primitive["attributes"].get('WEIGHTS_' + str(max_bone_set_index)):
+    while blender_primitive["attributes"].get(
+        f'JOINTS_{max_bone_set_index}'
+    ) and blender_primitive["attributes"].get(f'WEIGHTS_{max_bone_set_index}'):
         max_bone_set_index += 1
     max_bone_set_index -= 1
 
@@ -102,7 +104,7 @@ def __gather_skins(blender_primitive, export_settings):
     weight_arrs = []
     for s in range(0, max_bone_set_index+1):
 
-        weight_id = 'WEIGHTS_' + str(s)
+        weight_id = f'WEIGHTS_{str(s)}'
         weight = blender_primitive["attributes"][weight_id]
         weight = np.array(weight, dtype=np.float32)
         weight = weight.reshape(len(weight) // 4, 4)
@@ -110,7 +112,7 @@ def __gather_skins(blender_primitive, export_settings):
 
 
         # joints
-        joint_id = 'JOINTS_' + str(s)
+        joint_id = f'JOINTS_{str(s)}'
         internal_joint = blender_primitive["attributes"][joint_id]
         component_type = gltf2_io_constants.ComponentType.UnsignedShort
         if max(internal_joint) < 256:
@@ -135,7 +137,7 @@ def __gather_skins(blender_primitive, export_settings):
     # Normalize weights so they sum to 1
     weight_total = weight_total.reshape(-1, 1)
     for s in range(0, max_bone_set_index+1):
-        weight_id = 'WEIGHTS_' + str(s)
+        weight_id = f'WEIGHTS_{str(s)}'
         weight_arrs[s] /= weight_total
 
         weight = array_to_accessor(
@@ -151,10 +153,6 @@ def __gather_skins(blender_primitive, export_settings):
 def __gather_attribute(blender_primitive, attribute, export_settings):
     data = blender_primitive["attributes"][attribute]
 
-
-    include_max_and_mins = {
-        "POSITION": True
-    }
 
     if (attribute.startswith("_") or attribute.startswith("COLOR_")) and blender_primitive["attributes"][attribute]['component_type'] == gltf2_io_constants.ComponentType.UnsignedShort:
         # Byte Color vertex color, need to normalize
@@ -187,6 +185,10 @@ def __gather_attribute(blender_primitive, attribute, export_settings):
     else:
 
         export_user_extensions('gather_attribute_change', export_settings, attribute, data, False)
+
+        include_max_and_mins = {
+            "POSITION": True
+        }
 
         return {
             attribute: array_to_accessor(

@@ -78,12 +78,15 @@ def gather_joint_vnode(vnode, export_settings):
     if sca[0] != 1.0 or sca[1] != 1.0 or sca[2] != 1.0:
         scale = [sca[0], sca[1], sca[2]]
 
-    # traverse into children
-    children = []
-
-    for bone_uuid in [c for c in vtree.nodes[vnode].children if vtree.nodes[c].blender_type == gltf2_blender_gather_tree.VExportNode.BONE]:
-        children.append(gather_joint_vnode(bone_uuid, export_settings))
-
+    children = [
+        gather_joint_vnode(bone_uuid, export_settings)
+        for bone_uuid in [
+            c
+            for c in vtree.nodes[vnode].children
+            if vtree.nodes[c].blender_type
+            == gltf2_blender_gather_tree.VExportNode.BONE
+        ]
+    ]
     # finally add to the joints array containing all the joints in the hierarchy
     node = gltf2_io.Node(
         camera=None,

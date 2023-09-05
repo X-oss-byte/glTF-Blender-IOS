@@ -24,7 +24,7 @@ from . import gltf2_blender_gather_skins
 
 def extract_primitives(blender_mesh, uuid_for_skined_data, blender_vertex_groups, modifiers, export_settings):
     """Extract primitives from a mesh."""
-    print_console('INFO', 'Extracting primitive: ' + blender_mesh.name)
+    print_console('INFO', f'Extracting primitive: {blender_mesh.name}')
 
     primitive_creator = PrimitiveCreator(blender_mesh, uuid_for_skined_data, blender_vertex_groups, modifiers, export_settings)
     primitive_creator.prepare_data()
@@ -104,16 +104,12 @@ class PrimitiveCreator:
                     modifier = modifiers_dict["ARMATURE"]
                     self.armature = modifier.object
 
-            # Skin must be ignored if the object is parented to a bone of the armature
-            # (This creates an infinite recursive error)
-            # So ignoring skin in that case
-            is_child_of_arma = (
-                self.armature and
-                self.blender_object and
-                self.blender_object.parent_type == "BONE" and
-                self.blender_object.parent.name == self.armature.name
-            )
-            if is_child_of_arma:
+            if is_child_of_arma := (
+                self.armature
+                and self.blender_object
+                and self.blender_object.parent_type == "BONE"
+                and self.blender_object.parent.name == self.armature.name
+            ):
                 self.armature = None
 
             if self.armature:
@@ -145,6 +141,7 @@ class PrimitiveCreator:
     def define_attributes(self):
 
 
+
         class KeepAttribute:
             def __init__(self, attr_name):
                 self.attr_name = attr_name
@@ -153,12 +150,12 @@ class PrimitiveCreator:
         # Manage attributes + COLOR_0
         for blender_attribute_index, blender_attribute in enumerate(self.blender_mesh.attributes):
 
-            attr = {}
-            attr['blender_attribute_index'] = blender_attribute_index
-            attr['blender_name'] = blender_attribute.name
-            attr['blender_domain'] = blender_attribute.domain
-            attr['blender_data_type'] = blender_attribute.data_type
-
+            attr = {
+                'blender_attribute_index': blender_attribute_index,
+                'blender_name': blender_attribute.name,
+                'blender_domain': blender_attribute.domain,
+                'blender_data_type': blender_attribute.data_type,
+            }
             # For now, we don't export edge data, because I need to find how to
             # get from edge data to dots data
             if attr['blender_domain'] == "EDGE":
@@ -166,12 +163,12 @@ class PrimitiveCreator:
 
             # Some type are not exportable (example : String)
             if gltf2_blender_conversion.get_component_type(blender_attribute.data_type) is None or \
-                gltf2_blender_conversion.get_data_type(blender_attribute.data_type) is None:
+                    gltf2_blender_conversion.get_data_type(blender_attribute.data_type) is None:
 
                 continue
 
             if self.blender_mesh.color_attributes.find(blender_attribute.name) == self.blender_mesh.color_attributes.render_color_index \
-                and self.blender_mesh.color_attributes.render_color_index != -1:
+                    and self.blender_mesh.color_attributes.render_color_index != -1:
 
                 if self.export_settings['gltf_colors'] is False:
                     continue
@@ -181,7 +178,10 @@ class PrimitiveCreator:
                 # Seems we sometime can have name collision about attributes
                 # Avoid crash and ignoring one of duplicated attribute name
                 if 'COLOR_0' in [a['gltf_attribute_name'] for a in self.blender_attributes]:
-                    print_console('WARNING', 'Attribute (vertex color) collision name: ' + blender_attribute.name + ", ignoring one of them")
+                    print_console(
+                        'WARNING',
+                        f'Attribute (vertex color) collision name: {blender_attribute.name}, ignoring one of them',
+                    )
                     continue
 
             else:
@@ -204,56 +204,64 @@ class PrimitiveCreator:
                 # Seems we sometime can have name collision about attributes
                 # Avoid crash and ignoring one of duplicated attribute name
                 if attr['gltf_attribute_name'] in [a['gltf_attribute_name'] for a in self.blender_attributes]:
-                    print_console('WARNING', 'Attribute collision name: ' + blender_attribute.name + ", ignoring one of them")
+                    print_console(
+                        'WARNING',
+                        f'Attribute collision name: {blender_attribute.name}, ignoring one of them',
+                    )
                     continue
 
             self.blender_attributes.append(attr)
 
         # Manage POSITION
-        attr = {}
-        attr['blender_data_type'] = 'FLOAT_VECTOR'
-        attr['blender_domain'] = 'POINT'
-        attr['gltf_attribute_name'] = 'POSITION'
+        attr = {
+            'blender_data_type': 'FLOAT_VECTOR',
+            'blender_domain': 'POINT',
+            'gltf_attribute_name': 'POSITION',
+        }
         attr['set'] = self.set_function()
         attr['skip_getting_to_dots'] = True
         self.blender_attributes.append(attr)
 
         # Manage NORMALS
         if self.use_normals:
-            attr = {}
-            attr['blender_data_type'] = 'FLOAT_VECTOR'
-            attr['blender_domain'] = 'CORNER'
-            attr['gltf_attribute_name'] = 'NORMAL'
-            attr['gltf_attribute_name_morph'] = 'MORPH_NORMAL_'
+            attr = {
+                'blender_data_type': 'FLOAT_VECTOR',
+                'blender_domain': 'CORNER',
+                'gltf_attribute_name': 'NORMAL',
+                'gltf_attribute_name_morph': 'MORPH_NORMAL_',
+            }
             attr['get'] = self.get_function()
             self.blender_attributes.append(attr)
 
         # Manage uvs TEX_COORD_x
         for tex_coord_i in range(self.tex_coord_max):
-            attr = {}
-            attr['blender_data_type'] = 'FLOAT2'
-            attr['blender_domain'] = 'CORNER'
-            attr['gltf_attribute_name'] = 'TEXCOORD_' + str(tex_coord_i)
+            attr = {
+                'blender_data_type': 'FLOAT2',
+                'blender_domain': 'CORNER',
+                'gltf_attribute_name': f'TEXCOORD_{str(tex_coord_i)}',
+            }
             attr['get'] = self.get_function()
             self.blender_attributes.append(attr)
 
         # Manage TANGENT
         if self.use_tangents:
-            attr = {}
-            attr['blender_data_type'] = 'FLOAT_VECTOR_4'
-            attr['blender_domain'] = 'CORNER'
-            attr['gltf_attribute_name'] = 'TANGENT'
+            attr = {
+                'blender_data_type': 'FLOAT_VECTOR_4',
+                'blender_domain': 'CORNER',
+                'gltf_attribute_name': 'TANGENT',
+            }
             attr['get'] = self.get_function()
             self.blender_attributes.append(attr)
 
         # Manage MORPH_POSITION_x
         for morph_i, vs in enumerate(self.morph_locs):
-            attr = {}
-            attr['blender_attribute_index'] = morph_i
-            attr['blender_data_type'] = 'FLOAT_VECTOR'
-            attr['blender_domain'] = 'POINT'
-            attr['gltf_attribute_name'] = 'MORPH_POSITION_' + str(morph_i)
-            attr['skip_getting_to_dots'] = True
+            attr = {
+                'blender_attribute_index': morph_i,
+                'blender_data_type': 'FLOAT_VECTOR',
+                'blender_domain': 'POINT',
+                'gltf_attribute_name': f'MORPH_POSITION_{str(morph_i)}',
+                'skip_getting_to_dots': True,
+            }
             attr['set'] = self.set_function()
             self.blender_attributes.append(attr)
 
@@ -263,7 +271,7 @@ class PrimitiveCreator:
                 attr['blender_attribute_index'] = morph_i
                 attr['blender_data_type'] = 'FLOAT_VECTOR'
                 attr['blender_domain'] = 'CORNER'
-                attr['gltf_attribute_name'] = 'MORPH_NORMAL_' + str(morph_i)
+                attr['gltf_attribute_name'] = f'MORPH_NORMAL_{str(morph_i)}'
                 # No get function is set here, because data are set from NORMALS
                 self.blender_attributes.append(attr)
 
@@ -278,9 +286,9 @@ class PrimitiveCreator:
                     attr['blender_attribute_index'] = morph_i
                     attr['blender_data_type'] = 'FLOAT_VECTOR'
                     attr['blender_domain'] = 'CORNER'
-                    attr['gltf_attribute_name'] = 'MORPH_TANGENT_' + str(morph_i)
+                    attr['gltf_attribute_name'] = f'MORPH_TANGENT_{str(morph_i)}'
                     attr['gltf_attribute_name_normal'] = "NORMAL"
-                    attr['gltf_attribute_name_morph_normal'] = "MORPH_NORMAL_" + str(morph_i)
+                    attr['gltf_attribute_name_morph_normal'] = f"MORPH_NORMAL_{str(morph_i)}"
                     attr['gltf_attribute_name_tangent'] = "TANGENT"
                     attr['skip_getting_to_dots'] = True
                     attr['set'] = self.set_function()
@@ -340,7 +348,7 @@ class PrimitiveCreator:
 
         # Find loose points
         if self.export_settings['gltf_loose_points']:
-            verts_in_edge = set(vi for e in self.blender_mesh.edges for vi in e.vertices)
+            verts_in_edge = {vi for e in self.blender_mesh.edges for vi in e.vertices}
             self.blender_idxs_points = [
                 vi for vi, _ in enumerate(self.blender_mesh.vertices)
                 if vi not in verts_in_edge

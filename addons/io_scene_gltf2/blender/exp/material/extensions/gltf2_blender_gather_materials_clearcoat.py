@@ -60,7 +60,7 @@ def export_clearcoat(blender_material, export_settings):
 
     use_actives_uvmaps = []
 
-    if len(clearcoat_roughness_slots) > 0:
+    if clearcoat_roughness_slots:
         if has_clearcoat_texture:
             clearcoat_texture, clearcoat_texture_use_active_uvmap, _ = gltf2_blender_gather_texture_info.gather_texture_info(
                 clearcoat_socket,

@@ -86,13 +86,16 @@ def __convert_keyframes(
 
     times = [k.seconds for k in keyframes]
     input = gather_accessor(
-        gltf2_io_binary_data.BinaryData.from_list(times, gltf2_io_constants.ComponentType.Float),
+        gltf2_io_binary_data.BinaryData.from_list(
+            times, gltf2_io_constants.ComponentType.Float
+        ),
         gltf2_io_constants.ComponentType.Float,
         len(times),
-        tuple([max(times)]),
-        tuple([min(times)]),
+        (max(times),),
+        (min(times),),
         gltf2_io_constants.DataType.Scalar,
-        export_settings)
+        export_settings,
+    )
 
     is_yup = export_settings['gltf_yup']
 

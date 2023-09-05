@@ -20,7 +20,7 @@ from .gltf2_blender_scene import BlenderScene
 class BlenderGlTF():
     """Main glTF import class."""
     def __new__(cls, *args, **kwargs):
-        raise RuntimeError("%s should not be instantiated" % cls)
+        raise RuntimeError(f"{cls} should not be instantiated")
 
     @staticmethod
     def create(gltf):
@@ -90,12 +90,16 @@ class BlenderGlTF():
 
         else:
             def convert_loc(x): return Vector(x)
+
             def convert_quat(q): return Quaternion([q[3], q[0], q[1], q[2]])
+
             def convert_scale(s): return Vector(s)
+
             def convert_matrix(m):
-                return Matrix([m[0::4], m[1::4], m[2::4], m[3::4]])
+                return Matrix([m[::4], m[1::4], m[2::4], m[3::4]])
 
             def convert_locs_batch(_locs): return
+
             def convert_normals_batch(_ns): return
 
             # Same convention, no correction needed.
@@ -168,7 +172,7 @@ class BlenderGlTF():
         # Calculate names for each mesh's shapekeys
         for mesh in gltf.data.meshes or []:
             mesh.shapekey_names = []
-            used_names = set(['Basis']) #Be sure to not use 'Basis' name at import, this is a reserved name
+            used_names = {'Basis'}
 
             # Look for primitive with morph targets
             for prim in (mesh.primitives or []):
@@ -190,7 +194,7 @@ class BlenderGlTF():
                     # Try to use name from extras.targetNames
                     try:
                         shapekey_name = str(mesh.extras['targetNames'][sk])
-                        if shapekey_name == "": # Issue when shapekey name is empty
+                        if not shapekey_name: # Issue when shapekey name is empty
                             shapekey_name = None
                     except Exception:
                         pass
@@ -203,7 +207,7 @@ class BlenderGlTF():
                             pass
 
                     if shapekey_name is None:
-                        shapekey_name = "target_" + str(sk)
+                        shapekey_name = f"target_{str(sk)}"
 
                     shapekey_name = BlenderGlTF.find_unused_name(used_names, shapekey_name)
                     used_names.add(shapekey_name)
@@ -241,7 +245,10 @@ class BlenderGlTF():
 
     @staticmethod
     def manage_material_variants(gltf):
-        if not (gltf.data.extensions is not None and 'KHR_materials_variants' in gltf.data.extensions.keys()):
+        if (
+            gltf.data.extensions is None
+            or 'KHR_materials_variants' not in gltf.data.extensions.keys()
+        ):
             gltf.KHR_materials_variants = False
             return
 

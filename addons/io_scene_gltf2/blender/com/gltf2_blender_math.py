@@ -49,11 +49,7 @@ def mathutils_to_gltf(x: typing.Union[Vector, Quaternion]) -> typing.List[float]
     """Transform a py object to glTF list."""
     if isinstance(x, Vector):
         return list(x)
-    if isinstance(x, Quaternion):
-        # Blender has w-first quaternion notation
-        return [x[1], x[2], x[3], x[0]]
-    else:
-        return list(x)
+    return [x[1], x[2], x[3], x[0]] if isinstance(x, Quaternion) else list(x)
 
 
 def to_yup() -> Matrix:
@@ -84,7 +80,7 @@ def swizzle_yup(v: typing.Union[Vector, Quaternion], data_path: str) -> typing.U
     }.get(target)
 
     if swizzle_func is None:
-        raise RuntimeError("Cannot transform values at {}".format(data_path))
+        raise RuntimeError(f"Cannot transform values at {data_path}")
 
     return swizzle_func(v)
 
@@ -125,7 +121,7 @@ def transform(v: typing.Union[Vector, Quaternion], data_path: str, transform: Ma
     }.get(target)
 
     if transform_func is None:
-        raise RuntimeError("Cannot transform values at {}".format(data_path))
+        raise RuntimeError(f"Cannot transform values at {data_path}")
 
     return transform_func(v, transform, need_rotation_correction)
 

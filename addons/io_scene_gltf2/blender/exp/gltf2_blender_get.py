@@ -25,22 +25,25 @@ def get_animation_target(action_group: bpy.types.ActionGroup):
 
 
 def get_object_from_datapath(blender_object, data_path: str):
-    if "." in data_path:
-        # gives us: ('modifiers["Subsurf"]', 'levels')
-        path_prop, path_attr = data_path.rsplit(".", 1)
+    if "." not in data_path:
+        return blender_object
+    # gives us: ('modifiers["Subsurf"]', 'levels')
+    path_prop, path_attr = data_path.rsplit(".", 1)
 
         # same as: prop = obj.modifiers["Subsurf"]
-        if path_attr in ["rotation", "scale", "location",
-                         "rotation_axis_angle", "rotation_euler", "rotation_quaternion"]:
-            prop = blender_object.path_resolve(path_prop)
-        else:
-            prop = blender_object.path_resolve(data_path)
-    else:
-        prop = blender_object
-        # single attribute such as name, location... etc
-        # path_attr = data_path
-
-    return prop
+    return (
+        blender_object.path_resolve(path_prop)
+        if path_attr
+        in [
+            "rotation",
+            "scale",
+            "location",
+            "rotation_axis_angle",
+            "rotation_euler",
+            "rotation_quaternion",
+        ]
+        else blender_object.path_resolve(data_path)
+    )
 
 
 def get_node_socket(blender_material, type, name):
@@ -52,8 +55,13 @@ def get_node_socket(blender_material, type, name):
     """
     nodes = [n for n in blender_material.node_tree.nodes if isinstance(n, type) and not n.mute]
     nodes = [node for node in nodes if check_if_is_linked_to_active_output(node.outputs[0])]
-    inputs = sum([[input for input in node.inputs if input.name == name] for node in nodes], [])
-    if inputs:
+    if inputs := sum(
+        (
+            [input for input in node.inputs if input.name == name]
+            for node in nodes
+        ),
+        [],
+    ):
         return inputs[0]
     return None
 
@@ -66,34 +74,32 @@ def get_socket(blender_material: bpy.types.Material, name: str, volume=False):
     :param name: the name of the socket
     :return: a blender NodeSocket
     """
-    if blender_material.node_tree and blender_material.use_nodes:
+    if not blender_material.node_tree or not blender_material.use_nodes:
+        return None
         #i = [input for input in blender_material.node_tree.inputs]
         #o = [output for output in blender_material.node_tree.outputs]
-        if name == "Emissive":
-            # Check for a dedicated Emission node first, it must supersede the newer built-in one
-            # because the newer one is always present in all Principled BSDF materials.
-            emissive_socket = get_node_socket(blender_material, bpy.types.ShaderNodeEmission, "Color")
-            if emissive_socket:
-                return emissive_socket
-            # If a dedicated Emission node was not found, fall back to the Principled BSDF Emission socket.
-            name = "Emission"
-            type = bpy.types.ShaderNodeBsdfPrincipled
-        elif name == "Background":
-            type = bpy.types.ShaderNodeBackground
-            name = "Color"
-        elif name == "sheenColor":
-            return get_node_socket(blender_material, bpy.types.ShaderNodeBsdfSheen, "Color")
-        elif name == "sheenRoughness":
-            return get_node_socket(blender_material, bpy.types.ShaderNodeBsdfSheen, "Roughness")
-        else:
-            if volume is False:
-                type = bpy.types.ShaderNodeBsdfPrincipled
-            else:
-                type = bpy.types.ShaderNodeVolumeAbsorption
-
-        return get_node_socket(blender_material, type, name)
-
-    return None
+    if name == "Emissive":
+        if emissive_socket := get_node_socket(
+            blender_material, bpy.types.ShaderNodeEmission, "Color"
+        ):
+            return emissive_socket
+        # If a dedicated Emission node was not found, fall back to the Principled BSDF Emission socket.
+        name = "Emission"
+        type = bpy.types.ShaderNodeBsdfPrincipled
+    elif name == "Background":
+        type = bpy.types.ShaderNodeBackground
+        name = "Color"
+    elif name == "sheenColor":
+        return get_node_socket(blender_material, bpy.types.ShaderNodeBsdfSheen, "Color")
+    elif name == "sheenRoughness":
+        return get_node_socket(blender_material, bpy.types.ShaderNodeBsdfSheen, "Roughness")
+    else:
+        type = (
+            bpy.types.ShaderNodeBsdfPrincipled
+            if volume is False
+            else bpy.types.ShaderNodeVolumeAbsorption
+        )
+    return get_node_socket(blender_material, type, name)
 
 
 def get_socket_old(blender_material: bpy.types.Material, name: str):
@@ -111,8 +117,13 @@ def get_socket_old(blender_material: bpy.types.Material, name: str):
             isinstance(n, bpy.types.ShaderNodeGroup) and \
             n.node_tree is not None and
             (n.node_tree.name.startswith('glTF Metallic Roughness') or n.node_tree.name.lower() in gltf_node_group_names)]
-        inputs = sum([[input for input in node.inputs if input.name == name] for node in nodes], [])
-        if inputs:
+        if inputs := sum(
+            (
+                [input for input in node.inputs if input.name == name]
+                for node in nodes
+            ),
+            [],
+        ):
             return inputs[0]
 
     return None
@@ -187,11 +198,12 @@ def get_texture_transform_from_mapping_node(mapping_node):
                 return None
 
             new_offset = Matrix.Rotation(-rotation, 3, 'Z') @ Vector((-offset[0], -offset[1], 1))
-            new_offset[0] /= scale[0]; new_offset[1] /= scale[1]
+            new_offset[0] /= scale[0]
+            new_offset[1] /= scale[1]
             return {
-                "offset": new_offset[0:2],
+                "offset": new_offset[:2],
                 "rotation": -rotation,
-                "scale": [1/scale[0], 1/scale[1]],
+                "scale": [1 / scale[0], 1 / scale[1]],
             }
 
         mapping_transform = inverted(mapping_transform)
@@ -208,17 +220,14 @@ def get_texture_transform_from_mapping_node(mapping_node):
 
     texture_transform = texture_transform_blender_to_gltf(mapping_transform)
 
-    if all([component == 0 for component in texture_transform["offset"]]):
+    if all(component == 0 for component in texture_transform["offset"]):
         del(texture_transform["offset"])
-    if all([component == 1 for component in texture_transform["scale"]]):
+    if all(component == 1 for component in texture_transform["scale"]):
         del(texture_transform["scale"])
     if texture_transform["rotation"] == 0:
         del(texture_transform["rotation"])
 
-    if len(texture_transform) == 0:
-        return None
-
-    return texture_transform
+    return None if len(texture_transform) == 0 else texture_transform
 
 
 def get_node(data_path):
@@ -233,10 +242,7 @@ def get_node(data_path):
     node_name = data_path[(index + 2):]
 
     index = node_name.find("\"")
-    if (index == -1):
-        return None
-
-    return node_name[:(index)]
+    return None if (index == -1) else node_name[:(index)]
 
 
 def get_factor_from_socket(socket, kind):
@@ -269,23 +275,19 @@ def get_factor_from_socket(socket, kind):
 
 def get_const_from_default_value_socket(socket, kind):
     if kind == 'RGB':
-        if socket.type != 'RGBA': return None
-        return list(socket.default_value)[:3]
-    if kind == 'VALUE':
-        if socket.type != 'VALUE': return None
-        return socket.default_value
+        return None if socket.type != 'RGBA' else list(socket.default_value)[:3]
+    elif kind == 'VALUE':
+        return None if socket.type != 'VALUE' else socket.default_value
     return None
 
 
 def get_const_from_socket(socket, kind):
-    if not socket.is_linked:
-        if kind == 'RGB':
-            if socket.type != 'RGBA': return None
-            return list(socket.default_value)[:3]
-        if kind == 'VALUE':
-            if socket.type != 'VALUE': return None
-            return socket.default_value
-
+    if kind == 'RGB':
+        if not socket.is_linked:
+            return None if socket.type != 'RGBA' else list(socket.default_value)[:3]
+    elif kind == 'VALUE':
+        if not socket.is_linked:
+            return None if socket.type != 'VALUE' else socket.default_value
     # Handle connection to a constant RGB/Value node
     prev_node = previous_node(socket)
     if prev_node is not None:
@@ -314,15 +316,11 @@ def previous_socket(socket):
 
 def previous_node(socket):
     prev_socket = previous_socket(socket)
-    if prev_socket is not None:
-        return prev_socket.node
-    return None
+    return prev_socket.node if prev_socket is not None else None
 
 #TODOExt is this the same as __get_tex_from_socket from gather_image ?
 def has_image_node_from_socket(socket):
     result = gltf2_blender_search_node_tree.from_socket(
         socket,
         gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeTexImage))
-    if not result:
-        return False
-    return True
+    return bool(result)

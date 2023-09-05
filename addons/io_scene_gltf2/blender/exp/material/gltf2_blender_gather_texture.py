@@ -59,9 +59,7 @@ def gather_texture(
 
 def __filter_texture(blender_shader_sockets, export_settings):
     # User doesn't want to export textures
-    if export_settings['gltf_image_format'] == "NONE":
-        return None
-    return True
+    return None if export_settings['gltf_image_format'] == "NONE" else True
 
 
 def __gather_extensions(blender_shader_sockets, export_settings):
@@ -98,6 +96,4 @@ def __get_tex_from_socket(socket):
     result = gltf2_blender_search_node_tree.from_socket(
         socket,
         gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeTexImage))
-    if not result:
-        return None
-    return result[0]
+    return None if not result else result[0]

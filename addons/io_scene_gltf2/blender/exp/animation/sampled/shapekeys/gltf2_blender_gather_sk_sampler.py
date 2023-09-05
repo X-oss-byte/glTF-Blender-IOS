@@ -62,11 +62,7 @@ def __gather_keyframes(
         export_settings
     )
 
-    if keyframes is None:
-        # After check, no need to animation this node
-        return None
-
-    return keyframes
+    return None if keyframes is None else keyframes
 
 def __convert_keyframes(obj_uuid, keyframes, action_name: str, export_settings):
 
@@ -80,13 +76,16 @@ def __convert_keyframes(obj_uuid, keyframes, action_name: str, export_settings):
 
     times = [k.seconds for k in keyframes]
     input = gather_accessor(
-        gltf2_io_binary_data.BinaryData.from_list(times, gltf2_io_constants.ComponentType.Float),
+        gltf2_io_binary_data.BinaryData.from_list(
+            times, gltf2_io_constants.ComponentType.Float
+        ),
         gltf2_io_constants.ComponentType.Float,
         len(times),
-        tuple([max(times)]),
-        tuple([min(times)]),
+        (max(times),),
+        (min(times),),
         gltf2_io_constants.DataType.Scalar,
-        export_settings)
+        export_settings,
+    )
 
     values = []
     for keyframe in keyframes:

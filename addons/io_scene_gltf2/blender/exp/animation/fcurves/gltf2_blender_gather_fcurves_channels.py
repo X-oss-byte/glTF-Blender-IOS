@@ -71,16 +71,12 @@ def get_channel_groups(obj_uuid: str, blender_action: bpy.types.Action, export_s
             # example of target_property : location, rotation_quaternion, value
             target_property = get_target_property_name(fcurve.data_path)
         except:
-            gltf2_io_debug.print_console("WARNING", "Invalid animation fcurve name on action {}".format(blender_action.name))
+            gltf2_io_debug.print_console(
+                "WARNING",
+                f"Invalid animation fcurve name on action {blender_action.name}",
+            )
             continue
-        object_path = get_target_object_path(fcurve.data_path)
-
-        # find the object affected by this action
-        # object_path : blank for blender_object itself, key_blocks["<name>"] for SK, pose.bones["<name>"] for bones
-        if not object_path:
-            target = blender_object
-            type_ = "OBJECT"
-        else:
+        if object_path := get_target_object_path(fcurve.data_path):
             try:
                 target = get_object_from_datapath(blender_object, object_path)
                 type_ = "BONE"
@@ -102,12 +98,20 @@ def get_channel_groups(obj_uuid: str, blender_action: bpy.types.Action, export_s
                         type_ = "SK"
                     except:
                         # Something is wrong, for example a bone animation is linked to an object mesh...
-                        gltf2_io_debug.print_console("WARNING", "Animation target {} not found".format(object_path))
+                        gltf2_io_debug.print_console(
+                            "WARNING",
+                            f"Animation target {object_path} not found",
+                        )
                         continue
                 else:
-                    gltf2_io_debug.print_console("WARNING", "Animation target {} not found".format(object_path))
+                    gltf2_io_debug.print_console(
+                        "WARNING", f"Animation target {object_path} not found"
+                    )
                     continue
 
+        else:
+            target = blender_object
+            type_ = "OBJECT"
         # Detect that object or bone are not multiple keyed for euler and quaternion
         # Keep only the current rotation mode used by object
         rotation, rotation_modes = get_rotation_modes(target_property)
@@ -128,8 +132,10 @@ def get_channel_groups(obj_uuid: str, blender_action: bpy.types.Action, export_s
         target_data['properties'] = target_properties
         targets[target] = target_data
 
-    for targ in multiple_rotation_mode_detected.keys():
-        gltf2_io_debug.print_console("WARNING", "Multiple rotation mode detected for {}".format(targ.name))
+    for targ in multiple_rotation_mode_detected:
+        gltf2_io_debug.print_console(
+            "WARNING", f"Multiple rotation mode detected for {targ.name}"
+        )
 
     # Now that all curves are extracted,
     #    - check that there is no normal + delta transforms
@@ -180,8 +186,7 @@ def __get_channel_group_sorted(channels: typing.Tuple[bpy.types.FCurve], blender
     # else, no need to sort
     if blender_object.type == "MESH":
         first_channel = channels[0]
-        object_path = get_target_object_path(first_channel.data_path)
-        if object_path:
+        if object_path := get_target_object_path(first_channel.data_path):
             if not blender_object.data.shape_keys:
                 # Something is wrong. Maybe the user assigned an armature action
                 # to a mesh object. Returning without sorting
@@ -203,19 +208,19 @@ def __get_channel_group_sorted(channels: typing.Tuple[bpy.types.FCurve], blender
                 try:
                     sk_name = blender_object.data.shape_keys.path_resolve(get_target_object_path(sk_c.data_path)).name
                     idx = shapekeys_idx[sk_name]
-                    idx_channel_mapping.append((shapekeys_idx[sk_name], sk_c))
+                    idx_channel_mapping.append((idx, sk_c))
                 except:
                     # Something is wrong. For example, an armature action linked to a mesh object
                     continue
 
             existing_idx = dict(idx_channel_mapping)
             for i in range(0, cpt_sk):
-                if i not in existing_idx.keys():
-                    all_sorted_channels.append(None)
-                else:
+                if i in existing_idx:
                     all_sorted_channels.append(existing_idx[i])
 
-            if all([i is None for i in all_sorted_channels]): # all channel in error, and some non keyed SK
+                else:
+                    all_sorted_channels.append(None)
+            if all(i is None for i in all_sorted_channels): # all channel in error, and some non keyed SK
                 return channels             # This happen when an armature action is linked to a mesh object with non keyed SK
 
             return tuple(all_sorted_channels)

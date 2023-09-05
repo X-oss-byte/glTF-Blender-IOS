@@ -55,24 +55,24 @@ def specular_calculation(stored):
     # keep only needed channels
     ## scalar
     for i in ['specular', 'specular_tint', 'transmission']:
-        if i in buffers.keys():
-            buffers[i] = buffers[i][:,:,stored[i + "_channel"].data]
+        if i in buffers:
+            buffers[i] = buffers[i][:, :, stored[f"{i}_channel"].data]
         else:
             buffers[i] = np.full((width, height, 1), stored[i].data)
 
     # Vector 3
     for i in ['base_color']:
-        if i in buffers.keys():
-            if i + "_channel" not in stored.keys():
+        if i in buffers:
+            if f"{i}_channel" not in stored.keys():
                 buffers[i] = buffers[i][:,:,:3]
             else:
                 # keep only needed channel
                 for c in range(3):
-                    if c != stored[i+"_channel"].data:
+                    if c != stored[f"{i}_channel"].data:
                         buffers[i][:, :, c] = 0.0
                 buffers[i] = buffers[i][:,:,:3]
         else:
-            buffers[i] = np.full((width, height, 3), stored[i].data[0:3])
+            buffers[i] = np.full((width, height, 3), stored[i].data[:3])
 
     ior = stored['ior'].data
 
@@ -94,7 +94,7 @@ def specular_calculation(stored):
     factor = None
     factors = [np.amax(out_buf[:, :, i]) for i in range(3)]
 
-    if any([f > 1.0 for f in factors]):
+    if any(f > 1.0 for f in factors):
         factor = [1.0 if f < 1.0 else f for f in factors]
         out_buf /= factor
 

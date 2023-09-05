@@ -23,7 +23,7 @@ from .gltf2_blender_vnode import VNode
 class BlenderNodeAnim():
     """Blender Object Animation."""
     def __new__(cls, *args, **kwargs):
-        raise RuntimeError("%s should not be instantiated" % cls)
+        raise RuntimeError(f"{cls} should not be instantiated")
 
     @staticmethod
     def anim(gltf, anim_idx, node_idx):
@@ -92,10 +92,7 @@ class BlenderNodeAnim():
         if vnode.type == VNode.Bone:
             # Need to animate the pose bone when the node is a bone.
             group_name = vnode.blender_bone_name
-            blender_path = 'pose.bones["%s"].%s' % (
-                bpy.utils.escape_identifier(vnode.blender_bone_name),
-                blender_path
-            )
+            blender_path = f'pose.bones["{bpy.utils.escape_identifier(vnode.blender_bone_name)}"].{blender_path}'
 
             # We have the final TRS of the bone in values. We need to give
             # the TRS of the pose bone though, which is relative to the edit
@@ -128,9 +125,6 @@ class BlenderNodeAnim():
                     edit_rot_inv @ rot
                     for rot in values
                 ]
-
-            elif path == 'scale':
-                pass  # no change needed
 
         # To ensure rotations always take the shortest path, we flip
         # adjacent antipodal quaternions.
@@ -169,7 +163,7 @@ class BlenderNodeAnim():
 
         action = gltf.action_cache.get(obj.name)
         if not action:
-            name = anim_name + "_" + obj.name
+            name = f"{anim_name}_{obj.name}"
             action = bpy.data.actions.new(name)
             action.id_root = 'OBJECT'
             gltf.needs_stash.append((obj, action))

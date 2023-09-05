@@ -92,10 +92,7 @@ def __gather_name(blender_shader_node, export_settings):
 
 def __gather_wrap(blender_shader_node, export_settings):
     # First gather from the Texture node
-    if blender_shader_node.extension == 'EXTEND':
-        wrap_s = TextureWrap.ClampToEdge
-    elif blender_shader_node.extension == 'CLIP':
-        # Not possible in glTF, but ClampToEdge is closest
+    if blender_shader_node.extension in ['EXTEND', 'CLIP']:
         wrap_s = TextureWrap.ClampToEdge
     elif blender_shader_node.extension == 'MIRROR':
         wrap_s = TextureWrap.MirroredRepeat
@@ -103,13 +100,7 @@ def __gather_wrap(blender_shader_node, export_settings):
         wrap_s = TextureWrap.Repeat
     wrap_t = wrap_s
 
-    # Starting Blender 3.5, MIRROR is now an extension of image node
-    # So this manual uv wrapping trick is no more usefull for MIRROR x MIRROR
-    # But still works for old files
-    # Still needed for heterogen heterogeneous sampler, like MIRROR x REPEAT, for example
-    # Take manual wrapping into account
-    result = detect_manual_uv_wrapping(blender_shader_node)
-    if result:
+    if result := detect_manual_uv_wrapping(blender_shader_node):
         if result['wrap_s'] is not None: wrap_s = result['wrap_s']
         if result['wrap_t'] is not None: wrap_t = result['wrap_t']
 
@@ -169,9 +160,7 @@ def detect_manual_uv_wrapping(blender_shader_node):
         # Make sure both attach to the same SeparateXYZ node
         if soc == 'X':
             sep = prev_node
-        else:
-            if sep != prev_node: return None
-
+        elif sep != prev_node: return None
         result['wrap_s' if soc == 'X' else 'wrap_t'] = wrap
 
     result['next_socket'] = sep.inputs[0]

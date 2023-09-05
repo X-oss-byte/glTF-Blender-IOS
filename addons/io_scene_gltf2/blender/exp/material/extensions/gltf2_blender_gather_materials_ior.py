@@ -37,10 +37,8 @@ def export_ior(blender_material, extensions, export_settings):
         'KHR_materials_specular'
     ]
 
-    if not any([e in extensions.keys() for e in need_to_export_ior]):
+    if all(e not in extensions.keys() for e in need_to_export_ior):
         return None
 
-    ior_extension = {}
-    ior_extension['ior'] = ior_socket.default_value
-
+    ior_extension = {'ior': ior_socket.default_value}
     return Extension('KHR_materials_ior', ior_extension, False)

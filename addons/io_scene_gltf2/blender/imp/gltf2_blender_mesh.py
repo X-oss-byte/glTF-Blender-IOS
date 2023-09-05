@@ -27,7 +27,7 @@ from .gltf2_io_draco_compression_extension import decode_primitive
 class BlenderMesh():
     """Blender Mesh."""
     def __new__(cls, *args, **kwargs):
-        raise RuntimeError("%s should not be instantiated" % cls)
+        raise RuntimeError(f"{cls} should not be instantiated")
 
     @staticmethod
     def create(gltf, mesh_idx, skin_idx):

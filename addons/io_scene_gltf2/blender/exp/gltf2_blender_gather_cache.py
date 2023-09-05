@@ -39,13 +39,11 @@ def cached_by_key(key):
             if not hasattr(func, "__export_settings") or export_settings != func.__export_settings:
                 func.__cache = {}
                 func.__export_settings = export_settings
-            # use or fill cache
             if cache_key in func.__cache:
                 return func.__cache[cache_key]
-            else:
-                result = func(*args, **kwargs)
-                func.__cache[cache_key] = result
-                return result
+            result = func(*args, **kwargs)
+            func.__cache[cache_key] = result
+            return result
 
         return wrapper_cached
 

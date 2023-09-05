@@ -39,9 +39,10 @@ class GlTF2Exporter:
             copyright=copyright,
             extensions=None,
             extras=None,
-            generator='Khronos glTF Blender I/O v' + get_version_string(),
+            generator=f'Khronos glTF Blender I/O v{get_version_string()}',
             min_version=None,
-            version='2.0')
+            version='2.0',
+        )
 
         export_user_extensions('gather_asset_hook', export_settings, asset)
 
@@ -160,7 +161,7 @@ class GlTF2Exporter:
             os.makedirs(output_path, exist_ok=True)
 
         for name, image in self.__images.items():
-            dst_path = output_path + "/" + name + image.file_extension
+            dst_path = f"{output_path}/{name}{image.file_extension}"
             with open(dst_path, 'wb') as f:
                 f.write(image.data)
 
@@ -176,10 +177,10 @@ class GlTF2Exporter:
         if self.__finalized:
             raise RuntimeError("Tried to add scene to finalized glTF file")
 
-        # for node in scene.nodes:
-        #     self.__traverse(node)
-        scene_num = self.__traverse(scene)
         if active:
+            # for node in scene.nodes:
+            #     self.__traverse(node)
+            scene_num = self.__traverse(scene)
             self.__gltf.scene = scene_num
 
     def traverse_unused_skins(self, skins):
@@ -217,21 +218,19 @@ class GlTF2Exporter:
     def __append_unique_and_get_index(target: list, obj):
         if obj in target:
             return target.index(obj)
-        else:
-            index = len(target)
-            target.append(obj)
-            return index
+        index = len(target)
+        target.append(obj)
+        return index
 
     def __add_image(self, image: gltf2_io_image_data.ImageData):
         name = image.adjusted_name()
         count = 1
         regex = re.compile(r"-\d+$")
         while name in self.__images.keys():
-            regex_found = re.findall(regex, name)
-            if regex_found:
-                name = re.sub(regex, "-" + str(count), name)
+            if regex_found := re.findall(regex, name):
+                name = re.sub(regex, f"-{str(count)}", name)
             else:
-                name += "-" + str(count)
+                name += f"-{str(count)}"
 
             count += 1
         # TODO: allow embedding of images (base64)
@@ -251,7 +250,7 @@ class GlTF2Exporter:
         """Create if necessary and get the element at key path from a dict"""
         key = keypath.pop(0)
 
-        if len(keypath) == 0:
+        if not keypath:
             v = d.get(key, default)
             d[key] = v
             return v

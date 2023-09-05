@@ -39,7 +39,7 @@ def gather_sk_sampled_channels(
     blender_object = export_settings['vtree'].nodes[object_uuid].blender_object
     export_user_extensions('animation_gather_sk_channels', export_settings, blender_object, blender_action_name)
 
-    return channels if len(channels) > 0 else None
+    return channels if channels else None
 
 @cached
 def gather_sampled_sk_channel(

@@ -24,7 +24,7 @@ from .gltf2_blender_vnode import VNode
 class BlenderNode():
     """Blender Node."""
     def __new__(cls, *args, **kwargs):
-        raise RuntimeError("%s should not be instantiated" % cls)
+        raise RuntimeError(f"{cls} should not be instantiated")
 
     @staticmethod
     def create_vnode(gltf, vnode_id):
@@ -223,14 +223,10 @@ class BlenderNode():
         cache_key = None
         if not pymesh.shapekey_names:
             cache_key = (pynode.skin,)
+        elif pynode.weight_animation is False:
+            cache_key = (pynode.skin, tuple(pynode.weights or []))
         else:
-            # Unlike glTF, all instances of a Blender mesh share shapekeys.
-            # So two instances that might have different morph weights need
-            # different cache keys.
-            if pynode.weight_animation is False:
-                cache_key = (pynode.skin, tuple(pynode.weights or []))
-            else:
-                cache_key = None  # don't use the cache at all
+            cache_key = None  # don't use the cache at all
 
         if cache_key is not None and cache_key in pymesh.blender_name:
             mesh = bpy.data.meshes[pymesh.blender_name[cache_key]]

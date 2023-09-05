@@ -76,13 +76,15 @@ def get_sk_drivers(blender_armature_uuid, export_settings):
             idx_channel_mapping.append((shapekeys_idx[sk_name], sk_c))
         existing_idx = dict(idx_channel_mapping)
         for i in range(0, cpt_sk):
-            if i not in existing_idx.keys():
-                all_sorted_channels.append(None)
-            else:
+            if i in existing_idx:
                 all_sorted_channels.append(existing_idx[i])
 
+            else:
+                all_sorted_channels.append(None)
         # Checks there are some driver on SK, and that there is not only invalid drivers
-        if len(all_sorted_channels) > 0 and not all([i is None for i in all_sorted_channels]):
+        if all_sorted_channels and any(
+            i is not None for i in all_sorted_channels
+        ):
             drivers.append(child_uuid)
 
     return drivers

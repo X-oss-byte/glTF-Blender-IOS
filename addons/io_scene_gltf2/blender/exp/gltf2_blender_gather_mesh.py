@@ -69,7 +69,10 @@ def gather_mesh(blender_mesh: bpy.types.Mesh,
     )
 
     if len(mesh.primitives) == 0:
-        print_console("WARNING", "Mesh '{}' has no primitives and will be omitted.".format(mesh.name))
+        print_console(
+            "WARNING",
+            f"Mesh '{mesh.name}' has no primitives and will be omitted.",
+        )
         return None
 
     blender_object = None
@@ -121,10 +124,7 @@ def __gather_extras(blender_mesh: bpy.types.Mesh,
         if morph_max > 0:
             extras['targetNames'] = [k.name for k in get_sk_exported(blender_mesh.shape_keys.key_blocks)]
 
-    if extras:
-        return extras
-
-    return None
+    return extras if extras else None
 
 
 def __gather_name(blender_mesh: bpy.types.Mesh,

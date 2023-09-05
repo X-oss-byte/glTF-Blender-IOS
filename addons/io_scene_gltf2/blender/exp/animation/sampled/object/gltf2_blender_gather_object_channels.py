@@ -23,7 +23,7 @@ from ...fcurves.gltf2_blender_gather_fcurves_channels import get_channel_groups
 from .gltf2_blender_gather_object_sampler import gather_object_sampled_animation_sampler
 from .gltf2_blender_gather_object_channel_target import gather_object_sampled_channel_target
 
-def gather_object_sampled_channels(object_uuid: str, blender_action_name: str, export_settings)  -> typing.List[gltf2_io.AnimationChannel]:
+def gather_object_sampled_channels(object_uuid: str, blender_action_name: str, export_settings) -> typing.List[gltf2_io.AnimationChannel]:
     channels = []
 
     list_of_animated_channels = {}
@@ -44,10 +44,12 @@ def gather_object_sampled_channels(object_uuid: str, blender_action_name: str, e
             object_uuid,
             p,
             blender_action_name,
-            p in list_of_animated_channels.keys(),
-            list_of_animated_channels[p] if p in list_of_animated_channels.keys() else get_gltf_interpolation("LINEAR"),
-            export_settings
-            )
+            p in list_of_animated_channels,
+            list_of_animated_channels[p]
+            if p in list_of_animated_channels
+            else get_gltf_interpolation("LINEAR"),
+            export_settings,
+        )
         if channel is not None:
             channels.append(channel)
 
@@ -55,7 +57,7 @@ def gather_object_sampled_channels(object_uuid: str, blender_action_name: str, e
     export_user_extensions('animation_gather_object_channel', export_settings, blender_object, blender_action_name)
 
 
-    return channels if len(channels) > 0 else None
+    return channels if channels else None
 
 @cached
 def gather_sampled_object_channel(

@@ -64,13 +64,14 @@ def gather_primitives(
     """
     primitives = []
 
-    # retrieve active render UVMap
-    active_uvmap_idx = 0
-    for i in range(len(blender_mesh.uv_layers)):
-        if blender_mesh.uv_layers[i].active_render is True:
-            active_uvmap_idx = i
-            break
-
+    active_uvmap_idx = next(
+        (
+            i
+            for i in range(len(blender_mesh.uv_layers))
+            if blender_mesh.uv_layers[i].active_render is True
+        ),
+        0,
+    )
     blender_primitives = __gather_cache_primitives(blender_mesh, uuid_for_skined_data,
         vertex_groups, modifiers, export_settings)
 
@@ -173,7 +174,10 @@ def __gather_indices(blender_primitive, blender_mesh, modifiers, export_settings
         component_type = gltf2_io_constants.ComponentType.UnsignedInt
         indices = indices.astype(np.uint32, copy=False)
     else:
-        print_console('ERROR', 'A mesh contains too many vertices (' + str(max_index) + ') and needs to be split before export.')
+        print_console(
+            'ERROR',
+            f'A mesh contains too many vertices ({str(max_index)}) and needs to be split before export.',
+        )
         return None
 
     element_type = gltf2_io_constants.DataType.Scalar
@@ -194,50 +198,49 @@ def __gather_attributes(blender_primitive, blender_mesh, modifiers, export_setti
 
 
 def __gather_targets(blender_primitive, blender_mesh, modifiers, export_settings):
-    if export_settings['gltf_morph']:
-        targets = []
-        if blender_mesh.shape_keys is not None:
-            morph_index = 0
-            for blender_shape_key in get_sk_exported(blender_mesh.shape_keys.key_blocks):
+    if not export_settings['gltf_morph']:
+        return None
+    targets = []
+    if blender_mesh.shape_keys is not None:
+        morph_index = 0
+        for _ in get_sk_exported(blender_mesh.shape_keys.key_blocks):
+            target_position_id = f'MORPH_POSITION_{str(morph_index)}'
+            target_normal_id = f'MORPH_NORMAL_{str(morph_index)}'
+            target_tangent_id = f'MORPH_TANGENT_{str(morph_index)}'
 
-                target_position_id = 'MORPH_POSITION_' + str(morph_index)
-                target_normal_id = 'MORPH_NORMAL_' + str(morph_index)
-                target_tangent_id = 'MORPH_TANGENT_' + str(morph_index)
-
-                if blender_primitive["attributes"].get(target_position_id) is not None:
-                    target = {}
-                    internal_target_position = blender_primitive["attributes"][target_position_id]["data"]
-                    target["POSITION"] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
+            if blender_primitive["attributes"].get(target_position_id) is not None:
+                internal_target_position = blender_primitive["attributes"][target_position_id]["data"]
+                target = {
+                    "POSITION": gltf2_blender_gather_primitive_attributes.array_to_accessor(
                         internal_target_position,
                         component_type=gltf2_io_constants.ComponentType.Float,
                         data_type=gltf2_io_constants.DataType.Vec3,
                         include_max_and_min=True,
                     )
+                }
+                if export_settings['gltf_normals'] \
+                        and export_settings['gltf_morph_normal'] \
+                        and blender_primitive["attributes"].get(target_normal_id) is not None:
 
-                    if export_settings['gltf_normals'] \
-                            and export_settings['gltf_morph_normal'] \
-                            and blender_primitive["attributes"].get(target_normal_id) is not None:
+                    internal_target_normal = blender_primitive["attributes"][target_normal_id]["data"]
+                    target['NORMAL'] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
+                        internal_target_normal,
+                        component_type=gltf2_io_constants.ComponentType.Float,
+                        data_type=gltf2_io_constants.DataType.Vec3,
+                    )
 
-                        internal_target_normal = blender_primitive["attributes"][target_normal_id]["data"]
-                        target['NORMAL'] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
-                            internal_target_normal,
-                            component_type=gltf2_io_constants.ComponentType.Float,
-                            data_type=gltf2_io_constants.DataType.Vec3,
-                        )
-
-                    if export_settings['gltf_tangents'] \
-                            and export_settings['gltf_morph_tangent'] \
-                            and blender_primitive["attributes"].get(target_tangent_id) is not None:
-                        internal_target_tangent = blender_primitive["attributes"][target_tangent_id]["data"]
-                        target['TANGENT'] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
-                            internal_target_tangent,
-                            component_type=gltf2_io_constants.ComponentType.Float,
-                            data_type=gltf2_io_constants.DataType.Vec3,
-                        )
-                    targets.append(target)
-                    morph_index += 1
-        return targets
-    return None
+                if export_settings['gltf_tangents'] \
+                        and export_settings['gltf_morph_tangent'] \
+                        and blender_primitive["attributes"].get(target_tangent_id) is not None:
+                    internal_target_tangent = blender_primitive["attributes"][target_tangent_id]["data"]
+                    target['TANGENT'] = gltf2_blender_gather_primitive_attributes.array_to_accessor(
+                        internal_target_tangent,
+                        component_type=gltf2_io_constants.ComponentType.Float,
+                        data_type=gltf2_io_constants.DataType.Vec3,
+                    )
+                targets.append(target)
+                morph_index += 1
+    return targets
 
 def __gather_extensions(blender_mesh,
                         material_idx: int,
@@ -269,7 +272,7 @@ def __gather_extensions(blender_mesh,
                 extension=vari
             )
             variants.append(variant_extension)
-        if len(variants) > 0:
+        if variants:
             if i.material:
                 mat = gltf2_blender_gather_materials.gather_material(
                         i.material,
@@ -281,7 +284,7 @@ def __gather_extensions(blender_mesh,
                 mat = None
             mapping.append({'material': mat, 'variants': variants})
 
-    if len(mapping) > 0:
+    if mapping:
         extensions["KHR_materials_variants"] = gltf2_io_extensions.Extension(
             name="KHR_materials_variants",
             extension={

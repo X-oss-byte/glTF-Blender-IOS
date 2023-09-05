@@ -66,7 +66,5 @@ def export_emission_texture(blender_material, export_settings):
     return emissive_texture, ["emissiveTexture"] if use_actives_uvmap_emissive else None
 
 def export_emission_strength_extension(emissive_factor, export_settings):
-    emissive_strength_extension = {}
-    emissive_strength_extension['emissiveStrength'] = max(emissive_factor)
-
+    emissive_strength_extension = {'emissiveStrength': max(emissive_factor)}
     return Extension('KHR_materials_emissive_strength', emissive_strength_extension, False)

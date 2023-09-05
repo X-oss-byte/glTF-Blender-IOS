@@ -62,10 +62,10 @@ def gather_skin(armature_uuid, export_settings):
 def __filter_skin(blender_armature_object, export_settings):
     if not export_settings['gltf_skins']:
         return False
-    if blender_armature_object.type != 'ARMATURE' or len(blender_armature_object.pose.bones) == 0:
-        return False
-
-    return True
+    return (
+        blender_armature_object.type == 'ARMATURE'
+        and len(blender_armature_object.pose.bones) != 0
+    )
 
 
 def __gather_extensions(blender_armature_object, export_settings):
@@ -133,8 +133,7 @@ def __gather_joints(armature_uuid, export_settings):
         gltf2_blender_gather_joints.gather_joint_vnode(root_bone_uuid, export_settings)
 
     bones_uuid = export_settings['vtree'].get_all_bones(armature_uuid)
-    joints = [export_settings['vtree'].nodes[b].node for b in bones_uuid]
-    return joints
+    return [export_settings['vtree'].nodes[b].node for b in bones_uuid]
 
 
 def __gather_name(blender_armature_object, export_settings):

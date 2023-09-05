@@ -95,12 +95,11 @@ def __create_buffer(exporter, export_settings):
     buffer = bytes()
     if export_settings['gltf_format'] == 'GLB':
         buffer = exporter.finalize_buffer(export_settings['gltf_filedirectory'], is_glb=True)
+    elif export_settings['gltf_format'] == 'GLTF_EMBEDDED':
+        exporter.finalize_buffer(export_settings['gltf_filedirectory'])
     else:
-        if export_settings['gltf_format'] == 'GLTF_EMBEDDED':
-            exporter.finalize_buffer(export_settings['gltf_filedirectory'])
-        else:
-            exporter.finalize_buffer(export_settings['gltf_filedirectory'],
-                                     export_settings['gltf_binaryfilename'])
+        exporter.finalize_buffer(export_settings['gltf_filedirectory'],
+                                 export_settings['gltf_binaryfilename'])
 
     return buffer
 
@@ -118,9 +117,7 @@ def __fix_json(obj):
                 continue
             fixed[key] = __fix_json(value)
     elif isinstance(obj, list):
-        fixed = []
-        for value in obj:
-            fixed.append(__fix_json(value))
+        fixed = [__fix_json(value) for value in obj]
     elif isinstance(obj, float):
         # force floats to int, if they are integers (prevent INTEGER_WRITTEN_AS_FLOAT validator warnings)
         if int(obj) == obj:
@@ -131,15 +128,15 @@ def __fix_json(obj):
 def __should_include_json_value(key, value):
     allowed_empty_collections = ["KHR_materials_unlit"]
 
-    if value is None:
-        return False
-    elif __is_empty_collection(value) and key not in allowed_empty_collections:
-        return False
-    return True
+    return value is not None and (
+        value is None
+        or not __is_empty_collection(value)
+        or key in allowed_empty_collections
+    )
 
 
 def __is_empty_collection(value):
-    return (isinstance(value, dict) or isinstance(value, list)) and len(value) == 0
+    return (isinstance(value, (dict, list))) and len(value) == 0
 
 
 def __write_file(json, buffer, export_settings):
@@ -155,7 +152,7 @@ def __write_file(json, buffer, export_settings):
         tb_info = traceback.extract_tb(tb)
         for tbi in tb_info:
             filename, line, func, text = tbi
-            print_console('ERROR', 'An error occurred on line {} in statement {}'.format(line, text))
+            print_console('ERROR', f'An error occurred on line {line} in statement {text}')
         print_console('ERROR', str(e))
         raise e
 
@@ -167,6 +164,6 @@ def __notify_start(context):
 
 
 def __notify_end(context, elapsed):
-    print_console('INFO', 'Finished glTF 2.0 export in {} s'.format(elapsed))
+    print_console('INFO', f'Finished glTF 2.0 export in {elapsed} s')
     context.window_manager.progress_end()
     print_newline()

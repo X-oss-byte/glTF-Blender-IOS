@@ -82,10 +82,9 @@ def pbr_metallic_roughness(mh: MaterialHelper):
                 volume_location = additional_location
                 additional_location = additional_location[0], additional_location[1] - 150
 
-    need_sheen_node = False
-    if mh.pymat.extensions and 'KHR_materials_sheen' in mh.pymat.extensions:
-        need_sheen_node = True
-
+    need_sheen_node = bool(
+        mh.pymat.extensions and 'KHR_materials_sheen' in mh.pymat.extensions
+    )
     _, _, volume_socket, sheen_node = make_output_nodes(
         mh,
         location=(250, 260),
@@ -97,9 +96,6 @@ def pbr_metallic_roughness(mh: MaterialHelper):
         make_sheen_socket=need_sheen_node
     )
 
-
-    if mh.pymat.extensions and 'KHR_materials_sheen':
-        pass #TOTOEXT
 
     locs = calc_locations(mh)
 
@@ -202,8 +198,6 @@ def calc_locations(mh):
     x = -200
     y = 0
     height = 460  # height of each block
-    locs = {}
-
     try:
         clearcoat_ext = mh.pymat.extensions['KHR_materials_clearcoat']
     except Exception:
@@ -229,7 +223,7 @@ def calc_locations(mh):
     except:
         sheen_ext = {}
 
-    locs['sheenColorTexture'] = (x, y)
+    locs = {'sheenColorTexture': (x, y)}
     if 'sheenColorTexture' in sheen_ext:
         y -= height
     locs['sheenRoughnessTexture'] = (x, y)
@@ -364,8 +358,8 @@ def base_color(
 ):
     """Handle base color (= baseColorTexture * vertexColor * baseColorFactor)."""
     x, y = location
-    pbr = mh.pymat.pbr_metallic_roughness
     if not is_diffuse:
+        pbr = mh.pymat.pbr_metallic_roughness
         base_color_factor = pbr.base_color_factor
         base_color_texture = pbr.base_color_texture
     else:
@@ -392,19 +386,18 @@ def base_color(
     # Mix in base color factor
     needs_color_factor = base_color_factor[:3] != [1, 1, 1]
     needs_alpha_factor = base_color_factor[3] != 1.0 and alpha_socket is not None
-    if needs_color_factor or needs_alpha_factor:
-        if needs_color_factor:
-            node = mh.node_tree.nodes.new('ShaderNodeMix')
-            node.label = 'Color Factor'
-            node.data_type = "RGBA"
-            node.location = x - 140, y
-            node.blend_type = 'MULTIPLY'
-            # Outputs
-            mh.node_tree.links.new(color_socket, node.outputs[2])
-            # Inputs
-            node.inputs['Factor'].default_value = 1.0
-            color_socket = node.inputs[6]
-            node.inputs[7].default_value = base_color_factor[:3] + [1]
+    if needs_color_factor:
+        node = mh.node_tree.nodes.new('ShaderNodeMix')
+        node.label = 'Color Factor'
+        node.data_type = "RGBA"
+        node.location = x - 140, y
+        node.blend_type = 'MULTIPLY'
+        # Outputs
+        mh.node_tree.links.new(color_socket, node.outputs[2])
+        # Inputs
+        node.inputs['Factor'].default_value = 1.0
+        color_socket = node.inputs[6]
+        node.inputs[7].default_value = base_color_factor[:3] + [1]
 
         if needs_alpha_factor:
             node = mh.node_tree.nodes.new('ShaderNodeMath')
@@ -416,6 +409,19 @@ def base_color(
             node.operation = 'MULTIPLY'
             alpha_socket = node.inputs[0]
             node.inputs[1].default_value = base_color_factor[3]
+
+        x -= 200
+
+    elif needs_alpha_factor:
+        node = mh.node_tree.nodes.new('ShaderNodeMath')
+        node.label = 'Alpha Factor'
+        node.location = x - 140, y - 200
+        # Outputs
+        mh.node_tree.links.new(alpha_socket, node.outputs[0])
+        # Inputs
+        node.operation = 'MULTIPLY'
+        alpha_socket = node.inputs[0]
+        node.inputs[1].default_value = base_color_factor[3]
 
         x -= 200
 
@@ -754,9 +760,8 @@ def make_settings_node(mh):
 
 def get_settings_group():
     gltf_node_group_name = get_gltf_node_name()
-    if gltf_node_group_name in bpy.data.node_groups:
-        gltf_node_group = bpy.data.node_groups[gltf_node_group_name]
-    else:
-        # Create a new node group
-        gltf_node_group = create_settings_group(gltf_node_group_name)
-    return gltf_node_group
+    return (
+        bpy.data.node_groups[gltf_node_group_name]
+        if gltf_node_group_name in bpy.data.node_groups
+        else create_settings_group(gltf_node_group_name)
+    )

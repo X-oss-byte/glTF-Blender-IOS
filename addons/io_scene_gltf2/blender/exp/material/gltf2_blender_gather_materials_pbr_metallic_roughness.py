@@ -87,8 +87,7 @@ def __gather_base_color_factor(blender_material, export_settings):
 
     rgba = [*rgb, alpha]
 
-    if rgba == [1, 1, 1, 1]: return None
-    return rgba
+    return None if rgba == [1, 1, 1, 1] else rgba
 
 
 def __gather_base_color_texture(blender_material, export_settings):
@@ -100,15 +99,14 @@ def __gather_base_color_texture(blender_material, export_settings):
 
     alpha_socket = gltf2_blender_get.get_socket(blender_material, "Alpha")
 
-    # keep sockets that have some texture : color and/or alpha
-    inputs = tuple(
-        socket for socket in [base_color_socket, alpha_socket]
+    if inputs := tuple(
+        socket
+        for socket in [base_color_socket, alpha_socket]
         if socket is not None and __has_image_node_from_socket(socket)
-    )
-    if not inputs:
+    ):
+        return gltf2_blender_gather_texture_info.gather_texture_info(inputs[0], inputs, export_settings)
+    else:
         return None, None, None
-
-    return gltf2_blender_gather_texture_info.gather_texture_info(inputs[0], inputs, export_settings)
 
 
 def __gather_extensions(blender_material, export_settings):
@@ -174,9 +172,7 @@ def __has_image_node_from_socket(socket):
     result = gltf2_blender_search_node_tree.from_socket(
         socket,
         gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeTexImage))
-    if not result:
-        return False
-    return True
+    return bool(result)
 
 def get_default_pbr_for_emissive_node():
     return gltf2_io.MaterialPBRMetallicRoughness(

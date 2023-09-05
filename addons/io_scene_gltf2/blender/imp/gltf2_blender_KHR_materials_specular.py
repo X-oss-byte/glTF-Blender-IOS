@@ -91,8 +91,12 @@ def specular(mh, location_specular,
     except:
         ior = GLTF_IOR
 
-    use_texture = tex_specular_info is not None or tex_specular_color_info is not None \
-        or transmission_not_linked is False or base_color_not_linked is False
+    use_texture = (
+        tex_specular_info is not None
+        or tex_specular_color_info is not None
+        or not transmission_not_linked
+        or not base_color_not_linked
+    )
 
 
     # Before creating converted textures,
@@ -117,9 +121,7 @@ def specular(mh, location_specular,
         def normalize(c):
             assert(len(c) == 3)
             l = luminance(c)
-            if l == 0:
-                return c
-            return np.array([c[0] / l, c[1] / l, c[2] / l])
+            return c if l == 0 else np.array([c[0] / l, c[1] / l, c[2] / l])
 
         f0_from_ior = ((ior - 1)/(ior + 1))**2
         lum_specular_color = luminance(specular_color_factor)
@@ -128,7 +130,7 @@ def specular(mh, location_specular,
         else:
             # Avoid division by 0
             blender_specular = 1.0
-        if not all([i == 0 for i in normalize(base_color) - 1]):
+        if any(i != 0 for i in normalize(base_color) - 1):
             blender_specular_tint = luminance((normalize(specular_color_factor) - 1) / (normalize(base_color) - 1))
             if blender_specular_tint < 0 or blender_specular_tint > 1:
                 # TODOExt Warning clamping
@@ -221,9 +223,7 @@ def specular(mh, location_specular,
         luminance = lambda c: 0.3 * c[:,:,0] + 0.6 * c[:,:,1] + 0.1 * c[:,:,2]
         def normalize(c):
             l = luminance(c)
-            if np.all(l == 0.0):
-                return np.array(c)
-            return c / stack3(l)
+            return np.array(c) if np.all(l == 0.0) else c / stack3(l)
 
         f0_from_ior = ((ior - 1)/(ior + 1))**2
         lum_specular_color = stack3(luminance(buffers['speccolor']))

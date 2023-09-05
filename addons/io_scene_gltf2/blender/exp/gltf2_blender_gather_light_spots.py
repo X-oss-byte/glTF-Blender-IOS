@@ -21,18 +21,18 @@ def gather_light_spot(blender_lamp, export_settings) -> Optional[gltf2_io_lights
     if not __filter_light_spot(blender_lamp, export_settings):
         return None
 
-    spot = gltf2_io_lights_punctual.LightSpot(
-        inner_cone_angle=__gather_inner_cone_angle(blender_lamp, export_settings),
-        outer_cone_angle=__gather_outer_cone_angle(blender_lamp, export_settings)
+    return gltf2_io_lights_punctual.LightSpot(
+        inner_cone_angle=__gather_inner_cone_angle(
+            blender_lamp, export_settings
+        ),
+        outer_cone_angle=__gather_outer_cone_angle(
+            blender_lamp, export_settings
+        ),
     )
-    return spot
 
 
 def __filter_light_spot(blender_lamp, _) -> bool:
-    if blender_lamp.type != "SPOT":
-        return False
-
-    return True
+    return blender_lamp.type == "SPOT"
 
 
 def __gather_inner_cone_angle(blender_lamp, _) -> Optional[float]:

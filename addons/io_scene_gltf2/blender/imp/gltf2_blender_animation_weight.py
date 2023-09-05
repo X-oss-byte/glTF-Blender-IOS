@@ -22,7 +22,7 @@ from .gltf2_blender_animation_utils import make_fcurve
 class BlenderWeightAnim():
     """Blender ShapeKey Animation."""
     def __new__(cls, *args, **kwargs):
-        raise RuntimeError("%s should not be instantiated" % cls)
+        raise RuntimeError(f"{cls} should not be instantiated")
 
     @staticmethod
     def anim(gltf, anim_idx, vnode_id):
@@ -52,7 +52,7 @@ class BlenderWeightAnim():
         else:
             return
 
-        name = animation.track_name + "_" + obj.name
+        name = f"{animation.track_name}_{obj.name}"
         action = bpy.data.actions.new(name)
         action.id_root = "KEY"
         gltf.needs_stash.append((obj.data.shape_keys, action))
@@ -78,7 +78,7 @@ class BlenderWeightAnim():
             if pymesh.shapekey_names[sk] is not None: # Do not animate shapekeys not created
                 coords[1::2] = (values[offset + stride * i + sk][0] for i in range(len(keys)))
                 kb_name = pymesh.shapekey_names[sk]
-                data_path = 'key_blocks["%s"].value' % bpy.utils.escape_identifier(kb_name)
+                data_path = f'key_blocks["{bpy.utils.escape_identifier(kb_name)}"].value'
 
                 make_fcurve(
                     action,

@@ -102,7 +102,7 @@ def __gather_non_keyed_values(
         channel_group: typing.Tuple[bpy.types.FCurve],
         bone: typing.Optional[str],
         export_settings
-        ) ->  typing.Tuple[typing.Optional[float]]:
+        ) -> typing.Tuple[typing.Optional[float]]:
 
     blender_object = export_settings['vtree'].nodes[obj_uuid].blender_object
 
@@ -141,38 +141,34 @@ def __gather_non_keyed_values(
         for i in range(0, length):
             if i in indices:
                 non_keyed_values.append(None)
+            elif bone is None is None:
+                non_keyed_values.append({
+                    "delta_location" : blender_object.delta_location,
+                    "delta_rotation_euler" : blender_object.delta_rotation_euler,
+                    "delta_rotation_quaternion": blender_object.delta_rotation_quaternion,
+                    "delta_scale": blender_object.delta_scale,
+                    "location" : blender_object.location,
+                    "rotation_axis_angle" : blender_object.rotation_axis_angle,
+                    "rotation_euler" : blender_object.rotation_euler,
+                    "rotation_quaternion" : blender_object.rotation_quaternion,
+                    "scale" : blender_object.scale
+                }[target][i])
             else:
-                if bone is None is None:
-                    non_keyed_values.append({
-                        "delta_location" : blender_object.delta_location,
-                        "delta_rotation_euler" : blender_object.delta_rotation_euler,
-                        "delta_rotation_quaternion": blender_object.delta_rotation_quaternion,
-                        "delta_scale": blender_object.delta_scale,
-                        "location" : blender_object.location,
-                        "rotation_axis_angle" : blender_object.rotation_axis_angle,
-                        "rotation_euler" : blender_object.rotation_euler,
-                        "rotation_quaternion" : blender_object.rotation_quaternion,
-                        "scale" : blender_object.scale
-                    }[target][i])
-                else:
-                     # TODO, this is not working if the action is not active (NLA case for example) ?
-                     trans, rot, scale = blender_object.pose.bones[bone].matrix_basis.decompose()
-                     non_keyed_values.append({
-                        "location": trans,
-                        "rotation_axis_angle": rot,
-                        "rotation_euler": rot,
-                        "rotation_quaternion": rot,
-                        "scale": scale
-                        }[target][i])
-
-        return tuple(non_keyed_values)
+                # TODO, this is not working if the action is not active (NLA case for example) ?
+                trans, rot, scale = blender_object.pose.bones[bone].matrix_basis.decompose()
+                non_keyed_values.append({
+                   "location": trans,
+                   "rotation_axis_angle": rot,
+                   "rotation_euler": rot,
+                   "rotation_quaternion": rot,
+                   "scale": scale
+                   }[target][i])
 
     else:
         # We are in case of morph target, where all targets are not animated
         # So channels has some None items
         first_channel = [c for c in channel_group if c is not None][0]
-        object_path = get_target_object_path(first_channel.data_path)
-        if object_path:
+        if object_path := get_target_object_path(first_channel.data_path):
             shapekeys_idx = {}
             cpt_sk = 0
             for sk in blender_object.data.shape_keys.key_blocks:
@@ -187,7 +183,8 @@ def __gather_non_keyed_values(
             else:
                 non_keyed_values.append(None)
 
-        return tuple(non_keyed_values)
+
+    return tuple(non_keyed_values)
 
 
 def __complete_key(key: Keyframe, non_keyed_values: typing.Tuple[typing.Optional[float]]):
