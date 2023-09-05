@@ -34,7 +34,7 @@ def export_original_specular(blender_material, export_settings):
 
     use_actives_uvmaps = []
 
-    if specular_non_linked is True:
+    if specular_non_linked:
         fac = original_specular_socket.default_value
         if fac != 1.0:
             specular_extension['specularFactor'] = fac
@@ -56,7 +56,7 @@ def export_original_specular(blender_material, export_settings):
                 use_actives_uvmaps.append("specularTexture")
 
 
-    if specularcolor_non_linked is True:
+    if specularcolor_non_linked:
         color = original_specularcolor_socket.default_value[:3]
         if color != [1.0, 1.0, 1.0]:
             specular_extension['specularColorFactor'] = color
@@ -107,7 +107,7 @@ def export_specular(blender_material, export_settings):
     specular_tint = specular_tint_socket.default_value if specular_tint_not_linked else None
     transmission = transmission_socket.default_value if transmission_not_linked else None
     ior = ior_socket.default_value if ior_not_linked else GLTF_IOR   # textures not supported #TODOExt add warning?
-    base_color = base_color_socket.default_value[0:3]
+    base_color = base_color_socket.default_value[:3]
 
     no_texture = (transmission_not_linked and specular_not_linked and specular_tint_not_linked and
         (specular_tint == 0.0 or (specular_tint != 0.0 and base_color_not_linked)))
@@ -124,9 +124,7 @@ def export_specular(blender_material, export_settings):
                 luminance = lambda c: 0.3 * c[0] + 0.6 * c[1] + 0.1 * c[2]
                 assert(len(c) == 3)
                 l = luminance(c)
-                if l == 0:
-                    return np.array(c)
-                return np.array([c[0] / l, c[1] / l, c[2] / l])
+                return np.array(c) if l == 0 else np.array([c[0] / l, c[1] / l, c[2] / l])
 
             f0_from_ior = ((ior - 1)/(ior + 1))**2
             if f0_from_ior == 0:

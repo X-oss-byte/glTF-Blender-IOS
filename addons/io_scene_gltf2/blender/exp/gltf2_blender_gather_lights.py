@@ -45,7 +45,9 @@ def gather_lights_punctual(blender_lamp, export_settings) -> Optional[Dict[str, 
 
 def __filter_lights_punctual(blender_lamp, export_settings) -> bool:
     if blender_lamp.type in ["HEMI", "AREA"]:
-        gltf2_io_debug.print_console("WARNING", "Unsupported light source {}".format(blender_lamp.type))
+        gltf2_io_debug.print_console(
+            "WARNING", f"Unsupported light source {blender_lamp.type}"
+        )
         return False
 
     return True
@@ -61,42 +63,36 @@ def __gather_color(blender_lamp, export_settings) -> Optional[List[float]]:
 
 def __gather_intensity(blender_lamp, export_settings) -> Optional[float]:
     emission_node = __get_cycles_emission_node(blender_lamp)
-    if emission_node is not None:
-        if blender_lamp.type != 'SUN':
-            # When using cycles, the strength should be influenced by a LightFalloff node
-            result = gltf2_blender_search_node_tree.from_socket(
-                emission_node.inputs.get("Strength"),
-                gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeLightFalloff)
-            )
-            if result:
-                quadratic_falloff_node = result[0].shader_node
-                emission_strength = quadratic_falloff_node.inputs["Strength"].default_value / (math.pi * 4.0)
-            else:
-                gltf2_io_debug.print_console('WARNING',
-                                             'No quadratic light falloff node attached to emission strength property')
-                emission_strength = blender_lamp.energy
-        else:
-            emission_strength = emission_node.inputs["Strength"].default_value
-    else:
+    if emission_node is None:
         emission_strength = blender_lamp.energy
+    elif blender_lamp.type != 'SUN':
+        if result := gltf2_blender_search_node_tree.from_socket(
+            emission_node.inputs.get("Strength"),
+            gltf2_blender_search_node_tree.FilterByType(
+                bpy.types.ShaderNodeLightFalloff
+            ),
+        ):
+            quadratic_falloff_node = result[0].shader_node
+            emission_strength = quadratic_falloff_node.inputs["Strength"].default_value / (math.pi * 4.0)
+        else:
+            gltf2_io_debug.print_console('WARNING',
+                                         'No quadratic light falloff node attached to emission strength property')
+            emission_strength = blender_lamp.energy
+    else:
+        emission_strength = emission_node.inputs["Strength"].default_value
     if export_settings['gltf_lighting_mode'] == 'RAW':
         return emission_strength
-    else:
         # Assume at this point the computed strength is still in the appropriate watt-related SI unit, which if everything up to here was done with physical basis it hopefully should be.
-        if blender_lamp.type == 'SUN': # W/m^2 in Blender to lm/m^2 for GLTF/KHR_lights_punctual.
-            emission_luminous = emission_strength
-        else:
-            # Other than directional, only point and spot lamps are supported by GLTF.
-            # In Blender, points are omnidirectional W, and spots are specified as if they're points.
-            # Point and spot should both be lm/r^2 in GLTF.
-            emission_luminous = emission_strength / (4*math.pi)
-        if export_settings['gltf_lighting_mode'] == 'SPEC':
-            emission_luminous *= PBR_WATTS_TO_LUMENS
-        elif export_settings['gltf_lighting_mode'] == 'COMPAT':
-            pass # Just so we have an exhaustive tree to catch bugged values.
-        else:
-            raise ValueError(export_settings['gltf_lighting_mode'])
-        return emission_luminous
+    emission_luminous = (
+        emission_strength
+        if blender_lamp.type == 'SUN'
+        else emission_strength / (4 * math.pi)
+    )
+    if export_settings['gltf_lighting_mode'] == 'SPEC':
+        emission_luminous *= PBR_WATTS_TO_LUMENS
+    elif export_settings['gltf_lighting_mode'] != 'COMPAT':
+        raise ValueError(export_settings['gltf_lighting_mode'])
+    return emission_luminous
 
 
 def __gather_spot(blender_lamp, export_settings) -> Optional[gltf2_io_lights_punctual.LightSpot]:
@@ -140,11 +136,11 @@ def __get_cycles_emission_node(blender_lamp) -> Optional[bpy.types.ShaderNodeEmi
             if is_shadernode_output:
                 if not currentNode.is_active_output:
                     continue
-                result = gltf2_blender_search_node_tree.from_socket(
+                if result := gltf2_blender_search_node_tree.from_socket(
                     currentNode.inputs.get("Surface"),
-                    gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeEmission)
-                )
-                if not result:
-                    continue
-                return result[0].shader_node
+                    gltf2_blender_search_node_tree.FilterByType(
+                        bpy.types.ShaderNodeEmission
+                    ),
+                ):
+                    return result[0].shader_node
     return None

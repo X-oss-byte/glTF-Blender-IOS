@@ -90,11 +90,7 @@ def __gather_keyframes(
         export_settings
     )
 
-    if keyframes is None:
-        # After check, no need to animation this node
-        return None
-
-    return keyframes
+    return None if keyframes is None else keyframes
 
 def __convert_keyframes(armature_uuid, bone_name, channel, keyframes, action_name, export_settings):
 
@@ -107,19 +103,22 @@ def __convert_keyframes(armature_uuid, bone_name, channel, keyframes, action_nam
             k.seconds = k.frame / bpy.context.scene.render.fps
 
     times = [k.seconds for k in keyframes]
-    input =  gather_accessor(
-        gltf2_io_binary_data.BinaryData.from_list(times, gltf2_io_constants.ComponentType.Float),
+    input = gather_accessor(
+        gltf2_io_binary_data.BinaryData.from_list(
+            times, gltf2_io_constants.ComponentType.Float
+        ),
         gltf2_io_constants.ComponentType.Float,
         len(times),
-        tuple([max(times)]),
-        tuple([min(times)]),
+        (max(times),),
+        (min(times),),
         gltf2_io_constants.DataType.Scalar,
-        export_settings)
+        export_settings,
+    )
 
     is_yup = export_settings['gltf_yup']
 
     bone = export_settings['vtree'].nodes[armature_uuid].blender_object.pose.bones[bone_name]
-    target_datapath = "pose.bones['" + bone_name + "']." + channel
+    target_datapath = f"pose.bones['{bone_name}'].{channel}"
 
     if bone.parent is None:
         # bone at root of armature
@@ -185,7 +184,6 @@ def __convert_keyframes(armature_uuid, bone_name, channel, keyframes, action_nam
 
         values += keyframe_value
 
-     # store the keyframe data in a binary buffer
     component_type = gltf2_io_constants.ComponentType.Float
     data_type = gltf2_io_constants.DataType.vec_type_from_num(len(keyframes[0].value))
 
@@ -218,13 +216,8 @@ def __gather_interpolation(node_channel_is_animated, node_channel_interpolation,
             return "STEP"
         else:
             return node_channel_interpolation
+    elif node_channel_is_animated is False:
+        # baked => We have first and last keyframe
+        return "STEP"
     else:
-        # If we only have 2 keyframes, set interpolation to STEP if baked
-        if node_channel_is_animated is False:
-            # baked => We have first and last keyframe
-            return "STEP"
-        else:
-            if keyframes[0].value == keyframes[1].value:
-                return "STEP"
-            else:
-                return "LINEAR"
+        return "STEP" if keyframes[0].value == keyframes[1].value else "LINEAR"

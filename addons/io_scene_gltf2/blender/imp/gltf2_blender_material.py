@@ -24,7 +24,7 @@ from .gltf2_blender_KHR_materials_unlit import unlit
 class BlenderMaterial():
     """Blender Material."""
     def __new__(cls, *args, **kwargs):
-        raise RuntimeError("%s should not be instantiated" % cls)
+        raise RuntimeError(f"{cls} should not be instantiated")
 
     @staticmethod
     def create(gltf, material_idx, vertex_color):
@@ -35,7 +35,7 @@ class BlenderMaterial():
 
         name = pymaterial.name
         if name is None:
-            name = "Material_" + str(material_idx)
+            name = f"Material_{str(material_idx)}"
 
         mat = bpy.data.materials.new(name)
         pymaterial.blender_material[vertex_color] = mat.name
@@ -92,10 +92,9 @@ class BlenderMaterial():
         if 'KHR_materials_pbrSpecularGlossiness' in exts:
             # TODO
             return
-        else:
-            pbr = pymaterial.pbr_metallic_roughness
-            if pbr is None or pbr.base_color_texture is not None:
-                return
-            color = pbr.base_color_factor or [1, 1, 1, 1]
+        pbr = pymaterial.pbr_metallic_roughness
+        if pbr is None or pbr.base_color_texture is not None:
+            return
+        color = pbr.base_color_factor or [1, 1, 1, 1]
 
         mat.diffuse_color = color

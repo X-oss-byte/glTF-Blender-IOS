@@ -40,7 +40,10 @@ def gather_action_armature_sampled(armature_uuid: str, blender_action: typing.Op
             samplers=[] # We need to gather the samplers after gathering all channels --> populate this list in __link_samplers
         )
     except RuntimeError as error:
-        print_console("WARNING", "Animation '{}' could not be exported. Cause: {}".format(name, error))
+        print_console(
+            "WARNING",
+            f"Animation '{name}' could not be exported. Cause: {error}",
+        )
         return None
 
     export_user_extensions('pre_gather_animation_hook', export_settings, animation, blender_action, blender_object)

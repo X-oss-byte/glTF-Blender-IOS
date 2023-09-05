@@ -113,10 +113,7 @@ class ExportImage:
         return chan in self.fills
 
     def empty(self) -> bool:
-        if self.original is None:
-            return not (self.fills or self.stored)
-        else:
-            return False
+        return not (self.fills or self.stored) if self.original is None else False
 
     def blender_image(self) -> Optional[bpy.types.Image]:
         """If there's an existing Blender image we can use,
@@ -131,9 +128,11 @@ class ExportImage:
     def __on_happy_path(self) -> bool:
         # All src_chans match their dst_chan and come from the same image
         return (
-            all(isinstance(fill, FillImage) for fill in self.fills.values()) and
-            all(dst_chan == fill.src_chan for dst_chan, fill in self.fills.items()) and
-            len(set(fill.image.name for fill in self.fills.values())) == 1
+            all(isinstance(fill, FillImage) for fill in self.fills.values())
+            and all(
+                dst_chan == fill.src_chan for dst_chan, fill in self.fills.items()
+            )
+            and len({fill.image.name for fill in self.fills.values()}) == 1
         )
 
     def encode(self, mime_type: Optional[str], export_settings) -> Tuple[bytes, bool]:
@@ -146,12 +145,10 @@ class ExportImage:
         if self.__on_happy_path():
             return self.__encode_happy(export_settings), None
 
-        # Unhappy path = we need to create the image self.fills describes or self.stores describes
         if self.numpy_calc is None:
             return self.__encode_unhappy(export_settings), None
-        else:
-            pixels, width, height, factor = self.numpy_calc(self.stored)
-            return self.__encode_from_numpy_array(pixels, (width, height), export_settings), factor
+        pixels, width, height, factor = self.numpy_calc(self.stored)
+        return self.__encode_from_numpy_array(pixels, (width, height), export_settings), factor
 
     def __encode_happy(self, export_settings) -> bytes:
         return self.__encode_from_image(self.blender_image(), export_settings)
@@ -227,13 +224,14 @@ class ExportImage:
                         data = f.read()
         # Check magic number is right
         if data:
-            if self.file_format == 'PNG':
-                if data.startswith(b'\x89PNG'):
-                    return data
-            elif self.file_format == 'JPEG':
-                if data.startswith(b'\xff\xd8\xff'):
-                    return data
-
+            if (
+                self.file_format == 'PNG'
+                and data.startswith(b'\x89PNG')
+                or self.file_format != 'PNG'
+                and self.file_format == 'JPEG'
+                and data.startswith(b'\xff\xd8\xff')
+            ):
+                return data
         # Copy to a temp image and save.
         with TmpImageGuard() as guard:
             make_temp_image_copy(guard, src_image=image)
@@ -243,7 +241,7 @@ class ExportImage:
 
 def _encode_temp_image(tmp_image: bpy.types.Image, file_format: str, export_settings) -> bytes:
     with tempfile.TemporaryDirectory() as tmpdirname:
-        tmpfilename = tmpdirname + '/img'
+        tmpfilename = f'{tmpdirname}/img'
         tmp_image.filepath_raw = tmpfilename
 
         tmp_image.file_format = file_format

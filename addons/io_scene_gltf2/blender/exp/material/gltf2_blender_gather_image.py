@@ -98,9 +98,7 @@ def __make_image(buffer_view, extensions, extras, mime_type, name, uri, export_s
 
 
 def __filter_image(sockets, export_settings):
-    if not sockets:
-        return False
-    return True
+    return bool(sockets)
 
 
 @cached
@@ -141,33 +139,32 @@ def __gather_mime_type(sockets, export_image, export_settings):
 
 
 def __gather_name(export_image, export_settings):
-    if export_image.original is None:
-        # Find all Blender images used in the ExportImage
-        imgs = []
-        for fill in export_image.fills.values():
-            if isinstance(fill, FillImage):
-                img = fill.image
-                if img not in imgs:
-                    imgs.append(img)
+    if export_image.original is not None:
+        return export_image.original.name
+    # Find all Blender images used in the ExportImage
+    imgs = []
+    for fill in export_image.fills.values():
+        if isinstance(fill, FillImage):
+            img = fill.image
+            if img not in imgs:
+                imgs.append(img)
 
         # If all the images have the same path, use the common filename
-        filepaths = set(img.filepath for img in imgs)
-        if len(filepaths) == 1:
-            filename = os.path.basename(list(filepaths)[0])
-            name, extension = os.path.splitext(filename)
-            if extension.lower() in ['.png', '.jpg', '.jpeg']:
-                if name:
-                    return name
+    filepaths = {img.filepath for img in imgs}
+    if len(filepaths) == 1:
+        filename = os.path.basename(list(filepaths)[0])
+        name, extension = os.path.splitext(filename)
+        if extension.lower() in ['.png', '.jpg', '.jpeg']:
+            if name:
+                return name
 
-        # Combine the image names: img1-img2-img3
-        names = []
-        for img in imgs:
-            name, extension = os.path.splitext(img.name)
-            names.append(name)
-        name = '-'.join(names)
-        return name or 'Image'
-    else:
-        return export_image.original.name
+    # Combine the image names: img1-img2-img3
+    names = []
+    for img in imgs:
+        name, extension = os.path.splitext(img.name)
+        names.append(name)
+    name = '-'.join(names)
+    return name or 'Image'
 
 
 @cached
@@ -191,7 +188,10 @@ def __get_image_data(sockets, export_settings) -> ExportImage:
     results = [__get_tex_from_socket(socket, export_settings) for socket in sockets]
 
     # Check if we need a simple mapping or more complex calculation
-    if any([socket.name == "Specular" and socket.node.type == "BSDF_PRINCIPLED" for socket in sockets]):
+    if any(
+        socket.name == "Specular" and socket.node.type == "BSDF_PRINCIPLED"
+        for socket in sockets
+    ):
         return __get_image_data_specular(sockets, results, export_settings)
     else:
         return __get_image_data_mapping(sockets, results, export_settings)
@@ -263,9 +263,10 @@ def __get_image_data_mapping(sockets, results, export_settings) -> ExportImage:
     keys = list(composed_image.fills.keys()) # do not loop on dict, we may have to delete an element
     for k in [k for k in keys if isinstance(composed_image.fills[k], FillImage)]:
         if composed_image.fills[k].image.size[0] == 0 or composed_image.fills[k].image.size[1] == 0:
-            gltf2_io_debug.print_console("WARNING",
-                                         "Image '{}' has no size and cannot be exported.".format(
-                                             composed_image.fills[k].image))
+            gltf2_io_debug.print_console(
+                "WARNING",
+                f"Image '{composed_image.fills[k].image}' has no size and cannot be exported.",
+            )
             del composed_image.fills[k]
 
     return composed_image
@@ -307,11 +308,8 @@ def __get_image_data_specular(sockets, results, export_settings) -> ExportImage:
                 if elem.from_socket.name == 'Alpha':
                     src_chan = Channel.A
             # For base_color, keep all channels, as this is a Vec, not scalar
-            if idx != 2:
-                composed_image.store_data(mapping[idx] + "_channel", src_chan, type="Data")
-            else:
-                if src_chan is not None:
-                    composed_image.store_data(mapping[idx] + "_channel", src_chan, type="Data")
+            if idx == 2 and src_chan is not None or idx != 2:
+                composed_image.store_data(f"{mapping[idx]}_channel", src_chan, type="Data")
 
         else:
             composed_image.store_data(mapping[idx], sockets[idx].default_value, type="Data")
@@ -324,9 +322,7 @@ def __get_tex_from_socket(blender_shader_socket: bpy.types.NodeSocket, export_se
     result = gltf2_blender_search_node_tree.from_socket(
         blender_shader_socket,
         gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeTexImage))
-    if not result:
-        return None
-    return result[0]
+    return None if not result else result[0]
 
 
 def __is_blender_image_a_jpeg(image: bpy.types.Image) -> bool:
@@ -334,6 +330,5 @@ def __is_blender_image_a_jpeg(image: bpy.types.Image) -> bool:
         return False
     if image.filepath_raw == '' and image.packed_file:
         return image.packed_file.data[:3] == b'\xff\xd8\xff'
-    else:
-        path = image.filepath_raw.lower()
-        return path.endswith('.jpg') or path.endswith('.jpeg') or path.endswith('.jpe')
+    path = image.filepath_raw.lower()
+    return path.endswith('.jpg') or path.endswith('.jpeg') or path.endswith('.jpe')

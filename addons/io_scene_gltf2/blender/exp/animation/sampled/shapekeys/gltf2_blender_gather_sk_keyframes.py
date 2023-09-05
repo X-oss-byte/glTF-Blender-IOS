@@ -47,12 +47,12 @@ def gather_sk_sampled_keyframes(obj_uuid,
         keyframes.append(key)
         frame += step
 
-    if len(keyframes) == 0:
+    if not keyframes:
         # For example, option CROP negative frames, but all are negatives
         return None
 
     # In case SK has only basis
-    if any([len(k.value) == 0 for k in keyframes]):
+    if any(len(k.value) == 0 for k in keyframes):
         return None
 
     if not export_settings['gltf_optimize_animation']:
@@ -63,4 +63,13 @@ def gather_sk_sampled_keyframes(obj_uuid,
     return [keyframes[0], keyframes[-1]] if cst is True and len(keyframes) >= 2 else keyframes
 
 def fcurve_is_constant(keyframes):
-    return all([j < 0.0001 for j in np.ptp([[k.value[i] for i in range(len(keyframes[0].value))] for k in keyframes], axis=0)])
+    return all(
+        j < 0.0001
+        for j in np.ptp(
+            [
+                [k.value[i] for i in range(len(keyframes[0].value))]
+                for k in keyframes
+            ],
+            axis=0,
+        )
+    )

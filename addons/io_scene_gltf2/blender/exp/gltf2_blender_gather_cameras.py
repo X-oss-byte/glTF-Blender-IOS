@@ -87,38 +87,36 @@ def __gather_orthographic(blender_camera, export_settings):
 
 
 def __gather_perspective(blender_camera, export_settings):
-    if __gather_type(blender_camera, export_settings) == "perspective":
-        perspective = gltf2_io.CameraPerspective(
-            aspect_ratio=None,
-            extensions=None,
-            extras=None,
-            yfov=None,
-            zfar=None,
-            znear=None
-        )
+    if __gather_type(blender_camera, export_settings) != "perspective":
+        return None
+    perspective = gltf2_io.CameraPerspective(
+        aspect_ratio=None,
+        extensions=None,
+        extras=None,
+        yfov=None,
+        zfar=None,
+        znear=None
+    )
 
-        _render = bpy.context.scene.render
-        width = _render.pixel_aspect_x * _render.resolution_x
-        height = _render.pixel_aspect_y * _render.resolution_y
-        perspective.aspect_ratio = width / height
-        del _render
+    _render = bpy.context.scene.render
+    width = _render.pixel_aspect_x * _render.resolution_x
+    height = _render.pixel_aspect_y * _render.resolution_y
+    perspective.aspect_ratio = width / height
+    del _render
 
-        if width >= height:
-            if blender_camera.sensor_fit != 'VERTICAL':
-                perspective.yfov = 2.0 * math.atan(math.tan(blender_camera.angle * 0.5) / perspective.aspect_ratio)
-            else:
-                perspective.yfov = blender_camera.angle
-        else:
-            if blender_camera.sensor_fit != 'HORIZONTAL':
-                perspective.yfov = blender_camera.angle
-            else:
-                perspective.yfov = 2.0 * math.atan(math.tan(blender_camera.angle * 0.5) / perspective.aspect_ratio)
+    if (
+        width >= height
+        and blender_camera.sensor_fit != 'VERTICAL'
+        or width < height
+        and blender_camera.sensor_fit == 'HORIZONTAL'
+    ):
+        perspective.yfov = 2.0 * math.atan(math.tan(blender_camera.angle * 0.5) / perspective.aspect_ratio)
+    else:
+        perspective.yfov = blender_camera.angle
+    perspective.znear = blender_camera.clip_start
+    perspective.zfar = blender_camera.clip_end
 
-        perspective.znear = blender_camera.clip_start
-        perspective.zfar = blender_camera.clip_end
-
-        return perspective
-    return None
+    return perspective
 
 
 def __gather_type(blender_camera, export_settings):

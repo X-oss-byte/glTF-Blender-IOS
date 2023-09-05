@@ -37,10 +37,7 @@ def generate_extras(blender_element):
         if value is not None:
             extras[custom_property] = value
 
-    if not extras:
-        return None
-
-    return extras
+    return None if not extras else extras
 
 
 def __to_json_compatible(value):
@@ -94,4 +91,6 @@ def set_extras(blender_element, extras, exclude=[]):
             try:
                 blender_element[custom_property] = str(value)
             except Exception:
-                print('Error setting property %s to value of type %s' % (custom_property, type(value)))
+                print(
+                    f'Error setting property {custom_property} to value of type {type(value)}'
+                )

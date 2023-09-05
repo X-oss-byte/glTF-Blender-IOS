@@ -34,11 +34,6 @@ def gather_scene_animations(export_settings):
     start_frame = bpy.context.scene.frame_start
     end_frame = bpy.context.scene.frame_end
 
-    # The following options has no impact:
-        # - We force sampling & baking
-        # - Export_frame_range --> Because this is the case for SCENE mode, because we bake all scene frame range
-        # - CROP or SLIDE --> Scene don't have negative frames
-
     # This mode will bake all objects like there are in the scene
     vtree = export_settings['vtree']
     for obj_uuid in vtree.get_all_objects():
@@ -49,17 +44,20 @@ def gather_scene_animations(export_settings):
 
         blender_object = export_settings['vtree'].nodes[obj_uuid].blender_object
 
-        export_settings['ranges'][obj_uuid] = {}
-        export_settings['ranges'][obj_uuid][obj_uuid] = {'start': start_frame, 'end': end_frame}
+        export_settings['ranges'][obj_uuid] = {
+            obj_uuid: {'start': start_frame, 'end': end_frame}
+        }
         if blender_object.type == "ARMATURE":
             # Manage sk drivers
             obj_drivers = get_sk_drivers(obj_uuid, export_settings)
             for obj_dr in obj_drivers:
                 if obj_dr not in export_settings['ranges']:
                     export_settings['ranges'][obj_dr] = {}
-                export_settings['ranges'][obj_dr][obj_uuid + "_" + obj_uuid] = {}
-                export_settings['ranges'][obj_dr][obj_uuid + "_" + obj_uuid]['start'] = start_frame
-                export_settings['ranges'][obj_dr][obj_uuid + "_" + obj_uuid]['end'] = end_frame
+                export_settings['ranges'][obj_dr][f"{obj_uuid}_{obj_uuid}"] = {}
+                export_settings['ranges'][obj_dr][f"{obj_uuid}_{obj_uuid}"][
+                    'start'
+                ] = start_frame
+                export_settings['ranges'][obj_dr][f"{obj_uuid}_{obj_uuid}"]['end'] = end_frame
 
         if export_settings['gltf_anim_slide_to_zero'] is True and start_frame > 0:
             add_slide_data(start_frame, obj_uuid, obj_uuid, export_settings)
@@ -84,14 +82,14 @@ def gather_scene_animations(export_settings):
                     if obj_uuid in obj_drivers:
                         ignore_sk = True
 
-                if ignore_sk is False:
+                if not ignore_sk:
                     channels = gather_sk_sampled_channels(obj_uuid, obj_uuid, export_settings)
                     if channels is not None:
                         total_channels.extend(channels)
         else:
-                channels = gather_armature_sampled_channels(obj_uuid, obj_uuid, export_settings)
-                if channels is not None:
-                    total_channels.extend(channels)
+            channels = gather_armature_sampled_channels(obj_uuid, obj_uuid, export_settings)
+            if channels is not None:
+                total_channels.extend(channels)
 
         if export_settings['gltf_anim_scene_split_object'] is True:
             if len(total_channels) > 0:

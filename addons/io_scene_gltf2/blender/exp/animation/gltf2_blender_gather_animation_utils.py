@@ -42,10 +42,9 @@ def link_samplers(animation: gltf2_io.Animation, export_settings):
     def __append_unique_and_get_index(l: typing.List[T], item: T):
         if item in l:
             return l.index(item)
-        else:
-            index = len(l)
-            l.append(item)
-            return index
+        index = len(l)
+        l.append(item)
+        return index
 
     for i, channel in enumerate(animation.channels):
         animation.channels[i].sampler = __append_unique_and_get_index(animation.samplers, channel.sampler)
@@ -94,7 +93,7 @@ def add_slide_data(start_frame, obj_uuid: int, key: str, export_settings):
     for obj_dr in obj_drivers:
         if obj_dr not in export_settings['slide'].keys():
             export_settings['slide'][obj_dr] = {}
-        export_settings['slide'][obj_dr][obj_uuid + "_" + key] = start_frame
+        export_settings['slide'][obj_dr][f"{obj_uuid}_{key}"] = start_frame
 
 def merge_tracks_perform(merged_tracks, animations, export_settings):
     to_delete_idx = []
@@ -115,9 +114,10 @@ def merge_tracks_perform(merged_tracks, animations, export_settings):
             if idx == 0:
                 base_animation_idx = anim_idx
                 animations[anim_idx].name = merged_anim_track
-                already_animated = []
-                for channel in animations[anim_idx].channels:
-                    already_animated.append((channel.target.node, channel.target.path))
+                already_animated = [
+                    (channel.target.node, channel.target.path)
+                    for channel in animations[anim_idx].channels
+                ]
                 continue
 
             to_delete_idx.append(anim_idx)
@@ -140,18 +140,22 @@ def merge_tracks_perform(merged_tracks, animations, export_settings):
 
             for channel in animations[anim_idx].channels:
                 if (channel.target.node, channel.target.path) in already_animated:
-                    print_console("WARNING", "Some strips have same channel animation ({}), on node {} !".format(channel.target.path, channel.target.node.name))
+                    print_console(
+                        "WARNING",
+                        f"Some strips have same channel animation ({channel.target.path}), on node {channel.target.node.name} !",
+                    )
                     continue
                 animations[base_animation_idx].channels.append(channel)
                 animations[base_animation_idx].channels[-1].sampler = animations[base_animation_idx].channels[-1].sampler + offset_sampler
                 already_animated.append((channel.target.node, channel.target.path))
 
     new_animations = []
-    if len(to_delete_idx) != 0:
-        for idx, animation in enumerate(animations):
-            if idx in to_delete_idx:
-                continue
-            new_animations.append(animation)
+    if to_delete_idx:
+        new_animations.extend(
+            animation
+            for idx, animation in enumerate(animations)
+            if idx not in to_delete_idx
+        )
     else:
         new_animations = animations
 
@@ -210,7 +214,7 @@ def bake_animation(obj_uuid: str, animation_key: str, export_settings, mode=None
             if mode == "OBJECT":
                 ignore_sk = True
 
-            if ignore_sk is False:
+            if not ignore_sk:
                 channel = gather_sampled_sk_channel(obj_uuid, animation_key, export_settings)
                 if channel is not None:
                     if animation is None:

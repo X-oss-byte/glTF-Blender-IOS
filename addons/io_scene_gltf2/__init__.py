@@ -714,9 +714,8 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         self.check(context)  # ensure filepath has the right extension
 
         # All custom export settings are stored in this container.
-        export_settings = {}
+        export_settings = {'timestamp': datetime.datetime.now()}
 
-        export_settings['timestamp'] = datetime.datetime.now()
         export_settings['gltf_export_id'] = self.gltf_export_id
         export_settings['gltf_filepath'] = self.filepath
         export_settings['gltf_filedirectory'] = os.path.dirname(export_settings['gltf_filepath']) + '/'
@@ -830,8 +829,8 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         export_settings['gltf_lighting_mode'] = self.export_import_convert_lighting_mode
 
         export_settings['gltf_binary'] = bytearray()
-        export_settings['gltf_binaryfilename'] = (
-            path_to_uri(os.path.splitext(os.path.basename(self.filepath))[0] + '.bin')
+        export_settings['gltf_binaryfilename'] = path_to_uri(
+            f'{os.path.splitext(os.path.basename(self.filepath))[0]}.bin'
         )
 
         user_extensions = []
@@ -850,8 +849,7 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
                 user_extensions.append(extension_ctor())
             if hasattr(module, 'glTF2ExportUserExtensions'):
                 extension_ctors = module.glTF2ExportUserExtensions
-                for extension_ctor in extension_ctors:
-                    user_extensions.append(extension_ctor())
+                user_extensions.extend(extension_ctor() for extension_ctor in extension_ctors)
             if hasattr(module, 'glTF2_pre_export_callback'):
                 pre_export_callbacks.append(module.glTF2_pre_export_callback)
             if hasattr(module, 'glTF2_post_export_callback'):
@@ -1286,15 +1284,15 @@ class GLTF_PT_export_animation_notes(bpy.types.Panel):
     def draw(self, context):
         operator = context.space_data.active_operator
         layout = self.layout
-        if operator.export_animation_mode == "SCENE":
+        if operator.export_animation_mode == "NLA_TRACKS":
+            layout.label(text="Track mode uses full bake mode:")
+            layout.label(text="- sampling is active")
+            layout.label(text="- baking all objects is active")
+        elif operator.export_animation_mode == "SCENE":
             layout.label(text="Scene mode uses full bake mode:")
             layout.label(text="- sampling is active")
             layout.label(text="- baking all objects is active")
             layout.label(text="- Using scene frame range")
-        elif operator.export_animation_mode == "NLA_TRACKS":
-            layout.label(text="Track mode uses full bake mode:")
-            layout.label(text="- sampling is active")
-            layout.label(text="- baking all objects is active")
 
 class GLTF_PT_export_animation_ranges(bpy.types.Panel):
     bl_space_type = 'FILE_BROWSER'

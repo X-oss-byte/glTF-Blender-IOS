@@ -272,7 +272,7 @@ def move_skinned_meshes(gltf):
 
         # Otherwise, create a new child of the arma and move
         # the mesh instance there, leaving the node behind.
-        new_id = str(id) + '.skinned'
+        new_id = f'{str(id)}.skinned'
         gltf.vnodes[new_id] = VNode()
         gltf.vnodes[new_id].parent = arma
         gltf.vnodes[arma].children.append(new_id)
@@ -310,7 +310,7 @@ def fixup_multitype_nodes(gltf):
 
         if vnode.mesh_node_idx is not None:
             if needs_move:
-                new_id = str(id) + '.mesh'
+                new_id = f'{str(id)}.mesh'
                 gltf.vnodes[new_id] = VNode()
                 gltf.vnodes[new_id].mesh_node_idx = vnode.mesh_node_idx
                 gltf.vnodes[new_id].parent = id
@@ -320,7 +320,7 @@ def fixup_multitype_nodes(gltf):
 
         if vnode.camera_node_idx is not None:
             if needs_move:
-                new_id = str(id) + '.camera'
+                new_id = f'{str(id)}.camera'
                 gltf.vnodes[new_id] = VNode()
                 gltf.vnodes[new_id].camera_node_idx = vnode.camera_node_idx
                 gltf.vnodes[new_id].parent = id
@@ -330,7 +330,7 @@ def fixup_multitype_nodes(gltf):
 
         if vnode.light_node_idx is not None:
             if needs_move:
-                new_id = str(id) + '.light'
+                new_id = f'{str(id)}.light'
                 gltf.vnodes[new_id] = VNode()
                 gltf.vnodes[new_id].light_node_idx = vnode.light_node_idx
                 gltf.vnodes[new_id].parent = id
@@ -433,8 +433,9 @@ def pick_bone_length(gltf, bone_id):
         for child in vnode.children
         if gltf.vnodes[child].type == VNode.Bone
     ]
-    child_locs = [loc for loc in child_locs if loc.length > MIN_BONE_LENGTH]
-    if child_locs:
+    if child_locs := [
+        loc for loc in child_locs if loc.length > MIN_BONE_LENGTH
+    ]:
         return min(loc.length for loc in child_locs)
 
     if gltf.vnodes[vnode.parent].type == VNode.Bone:
@@ -467,8 +468,9 @@ def temperance(gltf, bone_id, parent_rot):
         for child in vnode.children
         if gltf.vnodes[child].type == VNode.Bone
     ]
-    child_locs = [loc for loc in child_locs if loc.length > MIN_BONE_LENGTH]
-    if child_locs:
+    if child_locs := [
+        loc for loc in child_locs if loc.length > MIN_BONE_LENGTH
+    ]:
         centroid = sum(child_locs, Vector((0, 0, 0)))
         rot = Vector((0, 1, 0)).rotation_difference(centroid)
         if gltf.import_settings['bone_heuristic'] == 'TEMPERANCE':

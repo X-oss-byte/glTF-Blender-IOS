@@ -144,8 +144,6 @@ def get_attribute_type(component_type, data_type):
             gltf2_io_constants.ComponentType.Float: "FLOAT_COLOR",
             gltf2_io_constants.ComponentType.UnsignedShort: "BYTE_COLOR"
         }[component_type]
-    else:
-        pass
 
 def get_gltf_interpolation(interpolation):
         return {

@@ -126,14 +126,12 @@ def gather_base_color_factor(info, export_settings):
     if alpha is None: alpha = 1.0
 
     rgba = [*rgb, alpha]
-    if rgba == [1, 1, 1, 1]: return None
-    return rgba
+    return None if rgba == [1, 1, 1, 1] else rgba
 
 
 def gather_base_color_texture(info, export_settings):
     sockets = (info.get('rgb_socket'), info.get('alpha_socket'))
-    sockets = tuple(s for s in sockets if s is not None)
-    if sockets:
+    if sockets := tuple(s for s in sockets if s is not None):
         # NOTE: separate RGB and Alpha textures will not get combined
         # because gather_image determines how to pack images based on the
         # names of sockets, and the names are hard-coded to a Principled

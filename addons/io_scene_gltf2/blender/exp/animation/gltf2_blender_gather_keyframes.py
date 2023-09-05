@@ -36,10 +36,7 @@ class Keyframe:
                 self.__length_morph = len(channels)
             self.target = bake_channel
             self.__indices = []
-            for i in range(self.get_target_len()):
-                self.__indices.append(i)
-
-
+            self.__indices.extend(iter(range(self.get_target_len())))
         # Data holders for virtual properties
         self.__value = None
         self.__in_tangent = None
@@ -60,7 +57,9 @@ class Keyframe:
         }.get(self.target)
 
         if length is None:
-            raise RuntimeError("Animations with target type '{}' are not supported.".format(self.target))
+            raise RuntimeError(
+                f"Animations with target type '{self.target}' are not supported."
+            )
 
         return length
 

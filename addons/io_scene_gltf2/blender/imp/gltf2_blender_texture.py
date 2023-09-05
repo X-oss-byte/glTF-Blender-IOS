@@ -51,8 +51,7 @@ def texture(
         if pytexture.source is not None:
             BlenderImage.create(mh.gltf, pytexture.source)
             pyimg = mh.gltf.data.images[pytexture.source]
-            blender_image_name = pyimg.blender_image_name
-            if blender_image_name:
+            if blender_image_name := pyimg.blender_image_name:
                 tex_img.image = bpy.data.images[blender_image_name]
     else:
         tex_img.image = forced_image
@@ -122,9 +121,6 @@ def texture(
                 math.inputs[1].default_value = 1
                 mh.node_tree.links.new(socket, math.outputs[0])
                 socket = math.inputs[0]
-            else:
-                # Pass-through CLAMP since the tex_img node is set to EXTEND
-                pass
             if i == 0:
                 u_socket = socket
             else:

@@ -33,7 +33,7 @@ def export_sheen(blender_material, export_settings):
 
     use_actives_uvmaps = []
 
-    if sheenColor_non_linked is True:
+    if sheenColor_non_linked:
         color = sheenColor_socket.default_value[:3]
         if color != (0.0, 0.0, 0.0):
             sheen_extension['sheenColorFactor'] = color
@@ -57,7 +57,7 @@ def export_sheen(blender_material, export_settings):
                 use_actives_uvmaps.append("sheenColorTexture")
 
 
-    if sheenRoughness_non_linked is True:
+    if sheenRoughness_non_linked:
         fac = sheenRoughness_socket.default_value
         if fac != 0.0:
             sheen_extension['sheenRoughnessFactor'] = fac

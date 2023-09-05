@@ -55,13 +55,10 @@ def gather_actions_animations(export_settings):
         merged_tracks_name = 'Animation'
         if(len(export_settings['gltf_nla_strips_merged_animation_name']) > 0):
             merged_tracks_name = export_settings['gltf_nla_strips_merged_animation_name']
-        merged_tracks[merged_tracks_name] = []
-        for idx, animation in enumerate(animations):
-            merged_tracks[merged_tracks_name].append(idx)
-
-    new_animations = merge_tracks_perform(merged_tracks, animations, export_settings)
-
-    return new_animations
+        merged_tracks[merged_tracks_name] = [
+            idx for idx, animation in enumerate(animations)
+        ]
+    return merge_tracks_perform(merged_tracks, animations, export_settings)
 
 
 def prepare_actions_range(export_settings):
@@ -88,8 +85,8 @@ def prepare_actions_range(export_settings):
             if end_frame - start_frame == 1:
                 # To workaround Blender bug 107030, check manually
                 try: # Avoid crash in case of strange/buggy fcurves
-                    start_frame = int(min([c.range()[0] for c in blender_action.fcurves]))
-                    end_frame = int(max([c.range()[1] for c in blender_action.fcurves]))
+                    start_frame = int(min(c.range()[0] for c in blender_action.fcurves))
+                    end_frame = int(max(c.range()[1] for c in blender_action.fcurves))
                 except:
                     pass
 
@@ -107,35 +104,47 @@ def prepare_actions_range(export_settings):
             export_settings['ranges'][obj_uuid][blender_action.name]['end'] = end_frame
 
             if export_settings['gltf_negative_frames'] == "SLIDE":
-                if track is not None:
-                    if not (track.startswith("NlaTrack") or track.startswith("[Action Stash]")):
-                        if track not in track_slide.keys() or (track in track_slide.keys() and start_frame < track_slide[track]):
-                            track_slide.update({track:start_frame})
-                    else:
-                        if start_frame < 0:
-                            add_slide_data(start_frame, obj_uuid, blender_action.name, export_settings)
-                else:
+                if track is None:
                     if export_settings['gltf_animation_mode'] == "ACTIVE_ACTIONS":
-                        if None not in track_slide.keys() or (None in track_slide.keys() and start_frame < track_slide[None]):
-                            track_slide.update({None:start_frame})
-                    else:
-                        if start_frame < 0:
-                            add_slide_data(start_frame, obj_uuid, blender_action.name, export_settings)
+                        if (
+                            None not in track_slide.keys()
+                            or start_frame < track_slide[None]
+                        ):
+                            track_slide[None] = start_frame
+                    elif start_frame < 0:
+                        add_slide_data(start_frame, obj_uuid, blender_action.name, export_settings)
 
+                elif not track.startswith("NlaTrack") and not track.startswith(
+                    "[Action Stash]"
+                ):
+                    if (
+                        track not in track_slide.keys()
+                        or start_frame < track_slide[track]
+                    ):
+                        track_slide[track] = start_frame
+                elif start_frame < 0:
+                    add_slide_data(start_frame, obj_uuid, blender_action.name, export_settings)
             if export_settings['gltf_anim_slide_to_zero'] is True and start_frame > 0:
-                if track is not None:
-                    if not (track.startswith("NlaTrack") or track.startswith("[Action Stash]")):
-                        if track not in track_slide.keys() or (track in track_slide.keys() and start_frame < track_slide[track]):
-                            track_slide.update({track:start_frame})
-                    else:
-                        add_slide_data(start_frame, obj_uuid, blender_action.name, export_settings)
-                else:
+                if track is None:
                     if export_settings['gltf_animation_mode'] == "ACTIVE_ACTIONS":
-                        if None not in track_slide.keys() or (None in track_slide.keys() and start_frame < track_slide[None]):
-                            track_slide.update({None:start_frame})
+                        if (
+                            None not in track_slide.keys()
+                            or start_frame < track_slide[None]
+                        ):
+                            track_slide[None] = start_frame
                     else:
                         add_slide_data(start_frame, obj_uuid, blender_action.name, export_settings)
 
+                elif not track.startswith("NlaTrack") and not track.startswith(
+                    "[Action Stash]"
+                ):
+                    if (
+                        track not in track_slide.keys()
+                        or start_frame < track_slide[track]
+                    ):
+                        track_slide[track] = start_frame
+                else:
+                    add_slide_data(start_frame, obj_uuid, blender_action.name, export_settings)
             if type_ == "SHAPEKEY" and export_settings['gltf_bake_animation']:
                 export_settings['ranges'][obj_uuid][obj_uuid] = {}
                 export_settings['ranges'][obj_uuid][obj_uuid]['start'] = bpy.context.scene.frame_start
@@ -147,9 +156,13 @@ def prepare_actions_range(export_settings):
                 for obj_dr in obj_drivers:
                     if obj_dr not in export_settings['ranges']:
                         export_settings['ranges'][obj_dr] = {}
-                    export_settings['ranges'][obj_dr][obj_uuid + "_" + blender_action.name] = {}
-                    export_settings['ranges'][obj_dr][obj_uuid + "_" + blender_action.name]['start'] = start_frame
-                    export_settings['ranges'][obj_dr][obj_uuid + "_" + blender_action.name]['end'] = end_frame
+                    export_settings['ranges'][obj_dr][f"{obj_uuid}_{blender_action.name}"] = {}
+                    export_settings['ranges'][obj_dr][
+                        f"{obj_uuid}_{blender_action.name}"
+                    ]['start'] = start_frame
+                    export_settings['ranges'][obj_dr][
+                        f"{obj_uuid}_{blender_action.name}"
+                    ]['end'] = end_frame
 
 
         if len(blender_actions) == 0 and export_settings['gltf_bake_animation']:
@@ -166,13 +179,18 @@ def prepare_actions_range(export_settings):
                 for obj_dr in obj_drivers:
                     if obj_dr not in export_settings['ranges']:
                         export_settings['ranges'][obj_dr] = {}
-                    export_settings['ranges'][obj_dr][obj_uuid + "_" + obj_uuid] = {}
-                    export_settings['ranges'][obj_dr][obj_uuid + "_" + obj_uuid]['start'] = bpy.context.scene.frame_start
-                    export_settings['ranges'][obj_dr][obj_uuid + "_" + obj_uuid]['end'] = bpy.context.scene.frame_end
+                    export_settings['ranges'][obj_dr][f"{obj_uuid}_{obj_uuid}"] = {}
+                    export_settings['ranges'][obj_dr][
+                        f"{obj_uuid}_{obj_uuid}"
+                    ]['start'] = bpy.context.scene.frame_start
+                    export_settings['ranges'][obj_dr][
+                        f"{obj_uuid}_{obj_uuid}"
+                    ]['end'] = bpy.context.scene.frame_end
 
-    if (export_settings['gltf_negative_frames'] == "SLIDE" \
-            or export_settings['gltf_anim_slide_to_zero'] is True) \
-            and len(track_slide) > 0:
+    if (
+        export_settings['gltf_negative_frames'] == "SLIDE"
+        or export_settings['gltf_anim_slide_to_zero'] is True
+    ) and track_slide:
         # Need to store animation slides
         for obj_uuid in vtree.get_all_objects():
 
@@ -182,7 +200,7 @@ def prepare_actions_range(export_settings):
 
             blender_actions = __get_blender_actions(obj_uuid, export_settings)
             for blender_action, track, type_ in blender_actions:
-                if track in track_slide.keys():
+                if track in track_slide:
                     if export_settings['gltf_negative_frames'] == "SLIDE" and track_slide[track] < 0:
                         add_slide_data(track_slide[track], obj_uuid, blender_action.name, export_settings)
                     elif export_settings['gltf_anim_slide_to_zero'] is True:

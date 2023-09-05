@@ -35,10 +35,7 @@ def volume(mh, location, volume_socket, thickness_socket):
 
     # Attenuation Distance / Density
     attenuationDistance = mh.pymat.extensions['KHR_materials_volume'].get('attenuationDistance')
-    if attenuationDistance is None:
-        density = 0
-    else:
-        density = 1.0 / attenuationDistance
+    density = 0 if attenuationDistance is None else 1.0 / attenuationDistance
     volume_socket.node.inputs[1].default_value = density
 
     # thicknessFactor / thicknessTexture

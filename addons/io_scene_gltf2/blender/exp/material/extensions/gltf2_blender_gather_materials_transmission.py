@@ -44,7 +44,7 @@ def export_transmission(blender_material, export_settings):
 
     use_actives_uvmaps = []
 
-    if len(transmission_slots) > 0:
+    if transmission_slots:
         combined_texture, use_active_uvmap, _ = gltf2_blender_gather_texture_info.gather_texture_info(
             transmission_socket,
             transmission_slots,

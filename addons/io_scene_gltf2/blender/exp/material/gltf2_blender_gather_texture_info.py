@@ -86,21 +86,23 @@ def __filter_texture_info(primary_socket, blender_shader_sockets, filter_type, e
         return False
     if not blender_shader_sockets:
         return False
-    if not all([elem is not None for elem in blender_shader_sockets]):
+    if any(elem is None for elem in blender_shader_sockets):
         return False
     if filter_type == "ALL":
         # Check that all sockets link to texture
-        if any([__get_tex_from_socket(socket) is None for socket in blender_shader_sockets]):
+        if any(
+            __get_tex_from_socket(socket) is None
+            for socket in blender_shader_sockets
+        ):
             # sockets do not lead to a texture --> discard
             return False
     elif filter_type == "ANY":
         # Check that at least one socket link to texture
-        if all([__get_tex_from_socket(socket) is None for socket in blender_shader_sockets]):
+        if all(
+            __get_tex_from_socket(socket) is None
+            for socket in blender_shader_sockets
+        ):
             return False
-    elif filter_type == "NONE":
-        # No check
-        pass
-
     return True
 
 
@@ -160,9 +162,7 @@ def __gather_texture_transform_and_tex_coord(primary_socket, export_settings):
     # [Mapping] is for KHR_texture_transform, and [UV Map] is for texCoord.
     blender_shader_node = __get_tex_from_socket(primary_socket).shader_node
 
-    # Skip over UV wrapping stuff (it goes in the sampler)
-    result = detect_manual_uv_wrapping(blender_shader_node)
-    if result:
+    if result := detect_manual_uv_wrapping(blender_shader_node):
         node = previous_node(result['next_socket'])
     else:
         node = previous_node(blender_shader_node.inputs['Vector'])
@@ -190,14 +190,15 @@ def __gather_texture_transform_and_tex_coord(primary_socket, export_settings):
 
 # TODOExt deduplicate
 def __get_tex_from_socket(socket):
-    result = gltf2_blender_search_node_tree.from_socket(
+    if result := gltf2_blender_search_node_tree.from_socket(
         socket,
-        gltf2_blender_search_node_tree.FilterByType(bpy.types.ShaderNodeTexImage))
-    if not result:
+        gltf2_blender_search_node_tree.FilterByType(
+            bpy.types.ShaderNodeTexImage
+        ),
+    ):
+        return None if result[0].shader_node.image is None else result[0]
+    else:
         return None
-    if result[0].shader_node.image is None:
-        return None
-    return result[0]
 
 
 def check_same_size_images(

@@ -24,7 +24,7 @@ from ...io.imp.gltf2_io_user_extensions import import_user_extensions
 class BlenderScene():
     """Blender Scene."""
     def __new__(cls, *args, **kwargs):
-        raise RuntimeError("%s should not be instantiated" % cls)
+        raise RuntimeError(f"{cls} should not be instantiated")
 
     @staticmethod
     def create(gltf):

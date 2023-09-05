@@ -37,9 +37,7 @@ def gather_tracks_animations(export_settings):
         animations_, merged_tracks = gather_track_animations(obj_uuid, merged_tracks, len(animations), export_settings)
         animations += animations_
 
-    new_animations = merge_tracks_perform(merged_tracks, animations, export_settings)
-
-    return new_animations
+    return merge_tracks_perform(merged_tracks, animations, export_settings)
 
 
 def gather_track_animations(  obj_uuid: int,
@@ -248,12 +246,7 @@ def __get_nla_tracks_obj(obj_uuid: str, export_settings):
             track.mute
         )
 
-        # Keep tracks where some blending together
-        if any([strip.blend_type != 'REPLACE' for strip in track.strips]):
-            # There is some blending. Keeping with previous track
-            pass
-        else:
-            # The previous one(s) can go to the list, if any (not for first track)
+        if all(strip.blend_type == 'REPLACE' for strip in track.strips):
             if len(current_exported_tracks) != 0:
                 exported_tracks.append(current_exported_tracks)
                 current_exported_tracks = []
@@ -271,7 +264,7 @@ def __get_nla_tracks_sk(obj_uuid: str, export_settings):
 
     obj = export_settings['vtree'].nodes[obj_uuid].blender_object
 
-    if not obj.type == "MESH":
+    if obj.type != "MESH":
         return [], [], []
     if obj.data is None:
         return [], [], []
@@ -298,12 +291,7 @@ def __get_nla_tracks_sk(obj_uuid: str, export_settings):
             track.mute
         )
 
-        # Keep tracks where some blending together
-        if any([strip.blend_type != 'REPLACE' for strip in track.strips]):
-            # There is some blending. Keeping with previous track
-            pass
-        else:
-            # The previous one(s) can go to the list, if any (not for first track)
+        if all(strip.blend_type == 'REPLACE' for strip in track.strips):
             if len(current_exported_tracks) != 0:
                 exported_tracks.append(current_exported_tracks)
                 current_exported_tracks = []
@@ -332,43 +320,55 @@ def prepare_tracks_range(obj_uuid, tracks, track_name, export_settings):
         frame_start = max(bpy.context.scene.frame_start, frame_start)
         frame_end = min(bpy.context.scene.frame_end, frame_end)
 
-    export_settings['ranges'][obj_uuid] = {}
-    export_settings['ranges'][obj_uuid][track_name] = {}
+    export_settings['ranges'][obj_uuid] = {track_name: {}}
     export_settings['ranges'][obj_uuid][track_name]['start'] = int(frame_start)
     export_settings['ranges'][obj_uuid][track_name]['end'] = int(frame_end)
 
     if export_settings['gltf_negative_frames'] == "SLIDE":
-        if not (track_name.startswith("NlaTrack") or track_name.startswith("[Action Stash]")):
-            if track_name not in track_slide.keys() or (track_name in track_slide.keys() and frame_start < track_slide[track_name]):
-                track_slide.update({track_name:frame_start})
-        else:
+        if track_name.startswith("NlaTrack") or track_name.startswith(
+            "[Action Stash]"
+        ):
             if frame_start < 0:
                 add_slide_data(frame_start, obj_uuid, track_name, export_settings)
 
 
+        elif (
+            track_name not in track_slide.keys()
+            or frame_start < track_slide[track_name]
+        ):
+            track_slide[track_name] = frame_start
     if export_settings['gltf_anim_slide_to_zero'] is True and frame_start > 0:
-        if not (track_name.startswith("NlaTrack") or track_name.startswith("[Action Stash]")):
-            if track_name not in track_slide.keys() or (track_name in track_slide.keys() and frame_start < track_slide[track_name]):
-                track_slide.update({track_name:frame_start})
-        else:
+        if track_name.startswith("NlaTrack") or track_name.startswith(
+            "[Action Stash]"
+        ):
             add_slide_data(frame_start, obj_uuid, track_name, export_settings)
 
 
+        elif (
+            track_name not in track_slide.keys()
+            or frame_start < track_slide[track_name]
+        ):
+            track_slide[track_name] = frame_start
     # For drivers
     if export_settings['vtree'].nodes[obj_uuid].blender_type == VExportNode.ARMATURE and export_settings['gltf_morph_anim'] is True:
         obj_drivers = get_sk_drivers(obj_uuid, export_settings)
         for obj_dr in obj_drivers:
             if obj_dr not in export_settings['ranges']:
                 export_settings['ranges'][obj_dr] = {}
-            export_settings['ranges'][obj_dr][obj_uuid + "_" + track_name] = {}
-            export_settings['ranges'][obj_dr][obj_uuid + "_" + track_name]['start'] = frame_start
-            export_settings['ranges'][obj_dr][obj_uuid + "_" + track_name]['end'] = frame_end
+            export_settings['ranges'][obj_dr][f"{obj_uuid}_{track_name}"] = {}
+            export_settings['ranges'][obj_dr][f"{obj_uuid}_{track_name}"][
+                'start'
+            ] = frame_start
+            export_settings['ranges'][obj_dr][f"{obj_uuid}_{track_name}"][
+                'end'
+            ] = frame_end
 
-    if (export_settings['gltf_negative_frames'] == "SLIDE" \
-            or export_settings['gltf_anim_slide_to_zero'] is True) \
-            and len(track_slide) > 0:
+    if (
+        export_settings['gltf_negative_frames'] == "SLIDE"
+        or export_settings['gltf_anim_slide_to_zero'] is True
+    ) and track_slide:
 
-        if track_name in track_slide.keys():
+        if track_name in track_slide:
             if export_settings['gltf_negative_frames'] == "SLIDE" and track_slide[track_name] < 0:
                 add_slide_data(track_slide[track_name], obj_uuid, track_name, export_settings)
             elif export_settings['gltf_anim_slide_to_zero'] is True:

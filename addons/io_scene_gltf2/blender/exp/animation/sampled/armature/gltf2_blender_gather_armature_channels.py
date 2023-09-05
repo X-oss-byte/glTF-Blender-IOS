@@ -26,7 +26,7 @@ from ..shapekeys.gltf2_blender_gather_sk_channels import gather_sampled_sk_chann
 from .gltf2_blender_gather_armature_channel_target import gather_armature_sampled_channel_target
 from .gltf2_blender_gather_armature_sampler import gather_bone_sampled_animation_sampler
 
-def gather_armature_sampled_channels(armature_uuid, blender_action_name, export_settings)  -> typing.List[gltf2_io.AnimationChannel]:
+def gather_armature_sampled_channels(armature_uuid, blender_action_name, export_settings) -> typing.List[gltf2_io.AnimationChannel]:
     channels = []
 
     # Then bake all bones
@@ -64,9 +64,12 @@ def gather_armature_sampled_channels(armature_uuid, blender_action_name, export_
                 bone,
                 p,
                 blender_action_name,
-                (bone, p) in list_of_animated_bone_channels.keys(),
-                list_of_animated_bone_channels[(bone, p)] if (bone, p) in list_of_animated_bone_channels.keys() else get_gltf_interpolation("LINEAR"),
-                export_settings)
+                (bone, p) in list_of_animated_bone_channels,
+                list_of_animated_bone_channels[(bone, p)]
+                if (bone, p) in list_of_animated_bone_channels
+                else get_gltf_interpolation("LINEAR"),
+                export_settings,
+            )
             if channel is not None:
                 channels.append(channel)
 
@@ -94,7 +97,11 @@ def gather_armature_sampled_channels(armature_uuid, blender_action_name, export_
     # Retrieve channels for drivers, if needed
     drivers_to_manage = get_sk_drivers(armature_uuid, export_settings)
     for obj_driver_uuid in drivers_to_manage:
-        channel = gather_sampled_sk_channel(obj_driver_uuid, armature_uuid + "_" + blender_action_name, export_settings)
+        channel = gather_sampled_sk_channel(
+            obj_driver_uuid,
+            f"{armature_uuid}_{blender_action_name}",
+            export_settings,
+        )
         if channel is not None:
             channels.append(channel)
 
@@ -160,8 +167,6 @@ def __gather_sampler(armature_uuid, bone, channel, action_name, node_channel_is_
         )
 
 def __gather_armature_object_channel(obj_uuid: str, blender_action, export_settings):
-    channels = []
-
     channels_animated, to_be_sampled = get_channel_groups(obj_uuid, blender_action, export_settings)
     # Remove all channel linked to bones, keep only directly object channels
     channels_animated = [c for c in channels_animated.values() if c['type'] == "OBJECT"]
@@ -171,38 +176,36 @@ def __gather_armature_object_channel(obj_uuid: str, blender_action, export_setti
     for c in channels_animated:
         original_channels.extend([(prop, c['properties'][prop][0].keyframe_points[0].interpolation) for prop in c['properties'].keys()])
 
-    for c, inter in original_channels:
-        channels.append(
-            (
-                {
-                    "location":"location",
-                    "rotation_quaternion": "rotation_quaternion",
-                    "rotation_euler": "rotation_quaternion",
-                    "scale": "scale",
-                    "delta_location": "location",
-                    "delta_scale": "scale",
-                    "delta_rotation_euler": "rotation_quaternion",
-                    "delta_rotation_quaternion": "rotation_quaternion"
-                }.get(c),
-                get_gltf_interpolation(inter)
-                )
-            )
-
-    for c in to_be_sampled:
-        channels.append(
-            (
-                {
-                    "location":"location",
-                    "rotation_quaternion": "rotation_quaternion",
-                    "rotation_euler": "rotation_quaternion",
-                    "scale": "scale",
-                    "delta_location": "location",
-                    "delta_scale": "scale",
-                    "delta_rotation_euler": "rotation_quaternion",
-                    "delta_rotation_quaternion": "rotation_quaternion"
-                }.get(c[2]),
-                get_gltf_interpolation("LINEAR") # Forced to be sampled, so use LINEAR
-                )
+    channels = [
+        (
+            {
+                "location": "location",
+                "rotation_quaternion": "rotation_quaternion",
+                "rotation_euler": "rotation_quaternion",
+                "scale": "scale",
+                "delta_location": "location",
+                "delta_scale": "scale",
+                "delta_rotation_euler": "rotation_quaternion",
+                "delta_rotation_quaternion": "rotation_quaternion",
+            }.get(c),
+            get_gltf_interpolation(inter),
         )
-
+        for c, inter in original_channels
+    ]
+    channels.extend(
+        (
+            {
+                "location": "location",
+                "rotation_quaternion": "rotation_quaternion",
+                "rotation_euler": "rotation_quaternion",
+                "scale": "scale",
+                "delta_location": "location",
+                "delta_scale": "scale",
+                "delta_rotation_euler": "rotation_quaternion",
+                "delta_rotation_quaternion": "rotation_quaternion",
+            }.get(c[2]),
+            get_gltf_interpolation("LINEAR"),
+        )
+        for c in to_be_sampled
+    )
     return channels

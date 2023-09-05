@@ -70,15 +70,13 @@ def __gather_keyframes(
         export_settings
         ):
 
-    keyframes = gather_object_sampled_keyframes(
+    return gather_object_sampled_keyframes(
         obj_uuid,
         channel,
         action_name,
         node_channel_is_animated,
-        export_settings
+        export_settings,
     )
-
-    return keyframes
 
 def __convert_keyframes(obj_uuid: str, channel: str, keyframes, action_name: str, export_settings):
 
@@ -92,13 +90,16 @@ def __convert_keyframes(obj_uuid: str, channel: str, keyframes, action_name: str
 
     times = [k.seconds for k in keyframes]
     input = gather_accessor(
-        gltf2_io_binary_data.BinaryData.from_list(times, gltf2_io_constants.ComponentType.Float),
+        gltf2_io_binary_data.BinaryData.from_list(
+            times, gltf2_io_constants.ComponentType.Float
+        ),
         gltf2_io_constants.ComponentType.Float,
         len(times),
-        tuple([max(times)]),
-        tuple([min(times)]),
+        (max(times),),
+        (min(times),),
         gltf2_io_constants.DataType.Scalar,
-        export_settings)
+        export_settings,
+    )
 
     is_yup = export_settings['gltf_yup']
 
@@ -156,17 +157,11 @@ def __gather_interpolation(
             "STEP": "STEP"
         }.get(node_channel_interpolation, "LINEAR")
     elif len(keyframes) == 1:
-        if node_channel_is_animated is False:
-            return "STEP"
-        else:
-            return node_channel_interpolation
+        return "STEP" if not node_channel_is_animated else node_channel_interpolation
     else:
         # If we only have 2 keyframes, set interpolation to STEP if baked
-        if node_channel_is_animated is False:
+        if not node_channel_is_animated:
             # baked => We have first and last keyframe
             return "STEP"
         else:
-            if keyframes[0].value == keyframes[1].value:
-                return "STEP"
-            else:
-                return "LINEAR"
+            return "STEP" if keyframes[0].value == keyframes[1].value else "LINEAR"

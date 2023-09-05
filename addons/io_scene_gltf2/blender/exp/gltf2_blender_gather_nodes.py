@@ -146,7 +146,10 @@ def __gather_children(vnode, blender_object, export_settings):
 def __gather_extensions(blender_object, export_settings):
     extensions = {}
 
-    if export_settings["gltf_lights"] and (blender_object.type == "LAMP" or blender_object.type == "LIGHT"):
+    if export_settings["gltf_lights"] and blender_object.type in [
+        "LAMP",
+        "LIGHT",
+    ]:
         blender_lamp = blender_object.data
         light = gltf2_blender_gather_lights.gather_lights_punctual(
             blender_lamp,
@@ -225,7 +228,7 @@ def __gather_mesh(vnode, blender_object, export_settings):
                     blender_object.modifiers[idx].show_viewport = show_viewport
 
             # Keep materials from the newly created tmp mesh
-            materials = tuple(mat for mat in blender_mesh.materials)
+            materials = tuple(blender_mesh.materials)
             if len(materials) == 1 and materials[0] is None:
                     materials = tuple(ms.material for ms in blender_object.material_slots)
     else:
@@ -233,10 +236,10 @@ def __gather_mesh(vnode, blender_object, export_settings):
         # If no skin are exported, no need to have vertex group, this will create a cache miss
         if not export_settings['gltf_skins']:
             modifiers = None
-        else:
-            # Check if there is an armature modidier
-            if len([mod for mod in blender_object.modifiers if mod.type == "ARMATURE"]) == 0:
-                modifiers = None
+        elif not [
+            mod for mod in blender_object.modifiers if mod.type == "ARMATURE"
+        ]:
+            modifiers = None
         # Keep materials from object, as no modifiers are applied, so no risk that
         # modifiers changed them
         materials = tuple(ms.material for ms in blender_object.material_slots)
@@ -246,7 +249,7 @@ def __gather_mesh(vnode, blender_object, export_settings):
     # we can't instantiate multiple object at different location, skined by same armature
     uuid_for_skined_data = None
     if export_settings['gltf_skins']:
-        for idx, modifier in enumerate(blender_object.modifiers):
+        for modifier in blender_object.modifiers:
             if modifier.type == 'ARMATURE':
                 uuid_for_skined_data = vnode.uuid
 
@@ -289,7 +292,11 @@ def __gather_mesh_from_nonmesh(blender_object, export_settings):
 
         needs_to_mesh_clear = True
 
-        materials = tuple([ms.material for ms in blender_object.material_slots if ms.material is not None])
+        materials = tuple(
+            ms.material
+            for ms in blender_object.material_slots
+            if ms.material is not None
+        )
         modifiers = None
         blender_object_for_skined_data = None
 
@@ -322,18 +329,30 @@ def __gather_trans_rot_scale(vnode, export_settings):
     if vnode.parent_uuid is None:
         # No parent, so matrix is world matrix
         trans, rot, sca = vnode.matrix_world.decompose()
+    elif export_settings['vtree'].nodes[vnode.parent_uuid].skin is None:
+        trans, rot, sca = (export_settings['vtree'].nodes[vnode.parent_uuid].matrix_world.inverted_safe() @ vnode.matrix_world).decompose()
     else:
-        # calculate local matrix
-        if export_settings['vtree'].nodes[vnode.parent_uuid].skin is None:
-            trans, rot, sca = (export_settings['vtree'].nodes[vnode.parent_uuid].matrix_world.inverted_safe() @ vnode.matrix_world).decompose()
-        else:
             # But ... if parent has skin, the parent TRS are not taken into account, so don't get local from parent, but from armature
             # It also depens if skined mesh is parented to armature or not
-            if export_settings['vtree'].nodes[vnode.parent_uuid].parent_uuid is not None and export_settings['vtree'].nodes[export_settings['vtree'].nodes[vnode.parent_uuid].parent_uuid].blender_type == VExportNode.ARMATURE:
-                trans, rot, sca = (export_settings['vtree'].nodes[export_settings['vtree'].nodes[vnode.parent_uuid].armature].matrix_world.inverted_safe() @ vnode.matrix_world).decompose()
-            else:
-                trans, rot, sca = vnode.matrix_world.decompose()
-
+        trans, rot, sca = (
+            (
+                export_settings['vtree']
+                .nodes[
+                    export_settings['vtree'].nodes[vnode.parent_uuid].armature
+                ]
+                .matrix_world.inverted_safe()
+                @ vnode.matrix_world
+            ).decompose()
+            if export_settings['vtree'].nodes[vnode.parent_uuid].parent_uuid
+            is not None
+            and export_settings['vtree']
+            .nodes[
+                export_settings['vtree'].nodes[vnode.parent_uuid].parent_uuid
+            ]
+            .blender_type
+            == VExportNode.ARMATURE
+            else vnode.matrix_world.decompose()
+        )
     # make sure the rotation is normalized
     rot.normalize()
 
